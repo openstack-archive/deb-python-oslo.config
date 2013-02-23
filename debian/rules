@@ -1,0 +1,15 @@
+#!/usr/bin/make -f
+
+#export DH_VERBOSE=1
+
+UPSTREAM_GIT = git://github.com/openstack/oslo-incubator.git
+
+include /usr/share/openstack-pkg-tools/pkgos.make
+
+export OSLO_PACKAGE_VERSION=$(VERSION)
+
+%:
+	dh $@  --with python2
+
+override_dh_auto_test:
+	nosetests

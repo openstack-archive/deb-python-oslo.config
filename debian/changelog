@@ -1,0 +1,5 @@
+oslo-config (2013.1~b4-1) experimental; urgency=low
+
+  * Initial release (Closes: #).
+
+ -- Thomas Goirand <zigo@debian.org>  Tue, 09 Oct 2012 11:55:15 +0000
