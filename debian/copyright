@@ -11,6 +11,35 @@ Copyright: 2012-2013, The openstack foundation and contributors
 	(c) 2013, Hewlett-Packard Development Company, L.P.
 	(c) 2013, Intel Corporation
 	(c) 2012, Red Hat Inc.
+	Author list, biggest contributor first:
+	Mark McLoughlin <markmc@redhat.com>
+	Zhongyue Luo <zhongyue.nah@intel.com>
+	Vishvananda Ishaya <vishvananda@gmail.com>
+	Joe Gordon <jogo@cloudscaling.com>
+	Davanum Srinivas <dims@linux.vnet.ibm.com>
+	Russell Bryant <rbryant@redhat.com>
+	Rick Harris <rconradharris@gmail.com>
+	Johannes Erdfelt <johannes.erdfelt@rackspace.com>
+	Eoghan Glynn <eglynn@redhat.com>
+	Yuriy Taraday <yorik.sar@gmail.com>
+	YAMAMOTO Takashi <yamamoto@valinux.co.jp>
+	Vincent Untz <vuntz@suse.com>
+	Monty Taylor <mordred@inaugust.com>
+	Michael Basnight <mbasnight@gmail.com>
+	lzyeval <lzyeval@gmail.com>
+	Laurence Miao <laurence.miao@gmail.com>
+	Kevin L. Mitchell <kevin.mitchell@rackspace.com>
+	Julien Danjou <julien@danjou.info>
+	Joe Heck <heckj@mac.com>
+	Jason Kölker <jason@koelker.net>
+	Giampaolo Lauria <lauria@us.ibm.com>
+	Gary Kotton <gkotton@redhat.com>
+	Doug Hellmann <doug.hellmann@dreamhost.com>
+	David Ripton <dripton@redhat.com>
+	Davanum Srinivas <davanum@gmail.com>
+	Dan Prince <dprince@redhat.com>
+	Brian Waldon <bcwaldon@gmail.com>
+	Anthony Young <sleepsonthefloor@gmail.com>
 License: Apache-2.0
 
 License: Apache-2.0
