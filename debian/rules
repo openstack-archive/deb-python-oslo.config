@@ -2,8 +2,6 @@
 
 #export DH_VERBOSE=1
 
-UPSTREAM_GIT = git://github.com/openstack/oslo-incubator.git
-
 include /usr/share/openstack-pkg-tools/pkgos.make
 
 export OSLO_PACKAGE_VERSION=$(VERSION)
