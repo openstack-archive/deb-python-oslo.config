@@ -1,0 +1,1425 @@
+commit 394876f258bf99132ba23c2e2bd07ee5ac6404cf
+Author: Jason Kölker <jason@koelker.net>
+Date:   Mon Feb 18 17:26:26 2013 -0600
+
+    Make sure to install the oslo package as well.
+    
+    Each package under a namespace that should install that namespace
+    package so the __init__.py for the namespace gets copied.
+    
+    Fixes Bug 1129587
+    
+    Change-Id: I064b05479c8a41d8f793886d2a5895dce166a85a
+
+commit 36bbf72d2f32a1ae10c484259cf7f29fbbfcd78e
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Sun Feb 17 09:25:32 2013 +0000
+
+    Add LICENSE file
+    
+    Change-Id: Icfbb242b0b5a1d494ed673d48cea07fdd25fbbd7
+
+commit af4ab489df16f120bef53ddb5ca02a6e7e042676
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Sat Feb 16 14:31:38 2013 +0000
+
+    Fix setup.py to install the correct package
+    
+    Change-Id: I87e3977ecd9078df0c8aa14ed18dc288fe49c596
+
+commit 16c4ecbefc94941821f3ae7ca253fad7bc377c58
+Author: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
+Date:   Wed Feb 13 14:01:46 2013 +0900
+
+    sort options to make --help output prettier
+    
+    explicitly sort options when adding them to argparse.
+    it's a bit silly to print them in a dict iteration order.
+    
+    Change-Id: Id508331d7ee3b24e76be7fa958d27d29905bd3d2
+    Signed-off-by: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
+
+commit b1730fcbc4f0852d9dd32fe6440e147fcd930abe
+Author: Zhongyue Luo <zhongyue.nah@intel.com>
+Date:   Wed Jan 30 22:27:51 2013 +0800
+
+    Implements import_group
+    
+    Created import_group method in cfg.py
+    Added testcases
+    
+    Fixes bug #1107843
+    
+    Change-Id: I427d4069dacbb6e586687370adbb08b5d50f7b63
+
+commit a118969fb71c95bd816db05b3b1b3c6fc0902bb9
+Author: Zhongyue Luo <zhongyue.nah@intel.com>
+Date:   Mon Jan 28 14:35:49 2013 +0800
+
+    Fixes "is not", "not in" syntax usage.
+    
+    Replaced "not ... is" to "is not"
+    Replaced "not ... in" to "not in"
+    Removed a redundant parenthesis
+    
+    Change-Id: I9564ab1207ccdcb32d7c2bb9e8f29658b2232ff9
+
+commit 9805067bcf156dac354644b9b97ff8ceb4b5b3c6
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Sat Feb 9 15:36:08 2013 -0500
+
+    Add sphinx documentation
+    
+    Add basic sphinx config and copy the theming from oslo-incubator which
+    was originally copied from keystone.
+    
+    Change-Id: Ibb3b679ce6e160c157ff63f0943807bd82aa1a67
+
+commit f24575c137abd204d5145ff59ae6e2fafc635a73
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Mon Jan 28 09:54:01 2013 +0000
+
+    Fix version to 2013.1
+
+commit 7da69211e912a8000c6498e015522edd223edfe7
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Mon Jan 28 09:28:30 2013 +0000
+
+    Start using fixtures and testtools
+    
+    Sync these changes from oslo-incubator:
+    
+      60f70b0 Replaced direct usage of stubout with BaseTestCase.
+      827547a Use testtools as test base class.
+    
+    Note: I've copied MoxStubout for now, but eventually I guess we'll
+    have an oslo-testing library we can depend on.
+
+commit c490e3515e8fee8c5743b944f60eeafb1b67864b
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Fri Jan 25 17:29:00 2013 +0000
+
+    Sync latest setup code from oslo-incubator
+    
+    Changes include:
+    
+     6b3c544 setup: count revs for revno if there are no tags
+     9c8685a Use revno and git sha for pre-release versioning.
+     5f5ef7d Add env var version override for packagers.
+     602aa9c trivial pep whitespace fix
+
+commit 45f1f32751f2fb9a841f46255a8108b46ad5cabb
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Mon Jan 21 14:13:59 2013 +0000
+
+    Move logging config options into the log module
+    
+    We learned a lesson in Nova - it's best to declare and use config
+    options within a single module if possible. Globally declared and
+    use config options grow like weeds and it becomes harder to find out
+    if, where and how individual options are used.
+    
+    Strangely, in cfg itself, we randomly declare a bunch of logging options
+    which are only used within the openstack.common.log module - let's move
+    the options there and remove the CommonConfigOpts class before they
+    become part of the API we commit to when oslo-config is released.
+    
+    A minor detail in the patch - the logfile and logdir options are already
+    deprecated in favour of log_file and log_dir, but we never got around to
+    removing all other traces of the deprecated options.
+    
+    Change-Id: I3913ea54465658d93dc56e014dfe5d911b0541d6
+
+commit 2ca3c749592c6b445b1ff27ccc40e0f644cf98a1
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Mon Dec 17 23:02:47 2012 +0000
+
+    Add setuptools magic
+
+commit 8c6a4c7523910e0745ae06194fa9484e45feb190
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Mon Jan 21 09:12:55 2013 +0000
+
+    Add oslo-config project infrastructure
+
+commit 27cc655c8046d5f3d59c72934ed11067e0e1e8f1
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Mon Jan 21 09:11:41 2013 +0000
+
+    Move files to new locations for oslo-config
+
+commit 2b210f7ebb7d29adfb4c12179c55d0167d8eff77
+Author: Zhongyue Luo <zhongyue.nah@intel.com>
+Date:   Fri Jan 18 14:10:05 2013 +0800
+
+    Fixes import order errors
+    
+    Change-Id: I3e35230dd2d96ab9f5a8c11b9ec1cd8d2d00e347
+
+commit 54d834e485927d704a4c68c69135229ad6ff9826
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Mon Jan 14 08:38:17 2013 +0000
+
+    Make tox run doctests
+    
+    Use 'nosetests --with-doctests' to run any doctests found. We currently
+    only use doctests in a handful of places, but we may as well run them
+    to ensure they work.
+    
+    Make the cfg doctests avoid using the global CONF since we would need
+    to reset its state between each doctest.
+    
+    Fix the cliutils doctests to actually pass.
+    
+    Use 'nosetests --exclude-dir=tests/testmods' to avoid loading the
+    modules from this dir while discovering doctests. The cfg unit tests
+    rely on these modules not having been previously loaded.
+    
+    Change-Id: I19ad70767fa5c8352b994dc963b5d3a7c9d9eb95
+
+commit 947bb9777bdfdcaa44ed4c22fab83a3d07b0a91f
+Author: Davanum Srinivas <dims@linux.vnet.ibm.com>
+Date:   Thu Dec 13 22:42:33 2012 -0500
+
+    Verbose should not enable debug level logging
+    
+    Fixes LP #989269
+    
+    Currently setting --verbose in will still allow DEBUG level
+    message to be logged to python logger object. we need to check
+    for --debug first (set DEBUG level), then --verbose (set INFO
+    level) and if neither is set then set default to WARNING
+    
+    DocImpact
+    
+    Change-Id: Ic9e3cb5979b2d7283552ad3a461870373f45a239
+
+commit 049b3f8218eb8181cb4f3e3bf52af1d1b64c092a
+Author: Monty Taylor <mordred@inaugust.com>
+Date:   Fri Jan 11 12:01:42 2013 +0100
+
+    Fix pep8 E125 errors.
+    
+    Caesar's wife must be above reproach.
+    
+    Change-Id: Iac85a57e71d403360f1567c07c8699057f0772fb
+
+commit d3deabba42f3a5e7325392def03d985967d76827
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Tue Jan 8 21:48:11 2013 +0000
+
+    Revert "Support lookup of value using "group.key""
+    
+    This reverts commit 525ac47.
+    
+    There are already two ways to reference an option in a group:
+    
+      CONF.group.key
+      CONF[group].key
+    
+    Adding a third variant doesn't seem ideal. Also, for the specific case
+    of LazyPluggable in Nova, we can easily just pass an optional config
+    group name to the constructor.
+    
+    Change-Id: I1a29a18d90e8af3ce2563bd1b3eeb64422140016
+
+commit d666430d5004ea56114a2b75ed4b9907e6a9e393
+Author: Davanum Srinivas <dims@linux.vnet.ibm.com>
+Date:   Wed Dec 26 22:50:35 2012 -0500
+
+    Support lookup of value using "group.key"
+    
+    Let us check if the opt_name has a '.', if it does then split it
+    into a group/key and try lookup using that combination. Since
+    LazyPluggable uses "CONF[self.__pivot]" if we just add this
+    capability to cfg, we get "LazyPluggable doesn't support
+    option groups" for free.
+    
+    Fixes LP #1093043
+    
+    Change-Id: I9cedcf22014038e9fe4ed5e66ca5427aa99b5091
+
+commit 8fa6c6232348754cf9f0586114732992df112dae
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Fri Dec 7 06:44:13 2012 +0000
+
+    Add deprecated --logdir common opt
+    
+    --logfile and --logdir are aliases Nova has for the --log-file and
+    --log-dir. If we're to support --logfile as a deprecated common
+    option, we should do the same for --logdir.
+    
+    Change-Id: I16485a93070d9ad7789a287d5b035c6f270ffead
+
+commit eb4e0f00ac927cee3767f5c25c7a5ec004af0917
+Author: Dan Prince <dprince@redhat.com>
+Date:   Thu Dec 6 10:40:36 2012 -0500
+
+    Add deprecated --logfile common opt.
+    
+    This adds a deprecated common options for --logfile which
+    is an alias for --log_file. This resolves some backwards compatability
+    issues with the most recent oslo common code where --logfile
+    was no longer a valid opt.
+    
+    Change-Id: I17b1277da94a2d81ae439d650a6d7321420dfe14
+
+commit b749f1d3cfeb6937240c05507db8872c7041fa0b
+Author: Davanum Srinivas <davanum@gmail.com>
+Date:   Wed Dec 5 16:11:48 2012 -0500
+
+    Allow nova and others to override some logging defaults
+    
+    - In log.py, indicate that logging module allows tweaking
+    of just logging_context_format_string option
+    - In cfg.py, add a method that can alter the default given
+    the options and new default
+    - add testcases for log.set_defaults and cfg.set_defaults
+    
+    Fixes LP #1083218
+    
+    Change-Id: Iefdbce8505eb7a07f2b59d4ed7564b0146f1b0cd
+
+commit 1aba080308ec7e88a13533d0cfed30e640bb2530
+Author: Michael Basnight <mbasnight@gmail.com>
+Date:   Wed Dec 5 16:00:11 2012 -0600
+
+    Fixing the trim for ListOp when reading from config file
+    
+    Fixes Bug 1087018
+    
+    Change-Id: I1c2d34166ae85add86daab6a7483b63297d00f66
+
+commit 82de68129b2bcc611bb584d262291ec32c249a4c
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Mon Nov 26 06:47:52 2012 +0000
+
+    Fix set_default() with boolean CLI options
+    
+    Porting to argparse broke set_default() with boolean CLI options. The
+    new test case shows this borkage.
+    
+    The issue is that, by default, argparse differs subtly from optparse in
+    its handling of defaults for boolean options. Compare:
+    
+      >>> p = optparse.OptionParser()
+      >>> p.add_option('--foo', action='store_true')
+      >>> p.add_option('--bar', action='store_true', default=False)
+      >>> p.parse_args([])
+      (<Values at 0x7f28aba066c8: {'foo': None, 'bar': False}>, [])
+    
+    to:
+    
+      >>> p = argparse.ArgumentParser()
+      >>> p.add_argument('--foo', action='store_true')
+      >>> p.add_argument('--bar', action='store_true', default=False)
+      >>> p.add_argument('--blaa', action='store_true', default=None)
+      >>> p.parse_args([])
+      Namespace(bar=False, blaa=None, foo=False)
+    
+    i.e. unless you specify a default for a boolean option, optparse
+    defaults to None whereas argparse defaults to False. To get the
+    same optparse behaviour with argparse, you need default=None.
+    
+    Change-Id: Ifc92a834c4ba59e939d80ac5de24d7051232f5b5
+
+commit fd4cad82e84f8c67644bb9fcbd9bc5fe735ff604
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Fri Nov 23 15:50:04 2012 +0000
+
+    Improve cfg's argparse sub-parsers support
+    
+    In order for sub-parsers to be useful, you need some way of knowing
+    which sub-parser was chosen during argument parsing. It's pretty obvious
+    from the current sub-parsers test case that we don't have a convenient
+    interface for this.
+    
+    One way of doing it is to use the 'dest' argument when adding
+    sub-parsers:
+    
+      >>> subparsers = parser.add_subparsers(dest='cmd')
+      >>> subparsers.add_parser('a')
+      >>> subparsers.add_parser('b')
+      >>> parser.parse_args(['a'])
+      Namespace(cmd='a')
+    
+    The most sensible way to map this into cfg concepts is to register
+    sub-parsers as an Opt. This way, we can make name and argument values
+    of the sub-parser as an attribute on the ConfigOpts object:
+    
+      >>> def add_parsers(subparsers):
+      ...     a = subparsers.add_parser('a')
+      ...     a.add_argument('id')
+      ...     b = subparsers.add_parser('b')
+      ...
+      >>> CONF.register_cli_opt(SubCommandOpt('cmd', handler=add_parsers))
+      True
+      >>> CONF(['a', '10'])
+      >>> CONF.cmd.name, CONF.cmd.id
+      ('a', '10')
+    
+    The handler method is a bit awkward, but each time cfg is to parse
+    command line args it takes all the registered opts and creates a new
+    argparse parser. So we need to be able to re-add the sub-parsers each
+    time.
+    
+    Change-Id: I01bfd01bf8853cf57a9248b1663eb3da142366a4
+
+commit 18065f5050b00e19c36781902c218c3703b2e50d
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Fri Nov 23 08:09:12 2012 +0000
+
+    Fix regression with cfg CLI arguments
+    
+    Fixes bug #1082279
+    
+    Only options registered using register_cli_opt() should be available via
+    the CLI, but since e42276a all options are added to the CLI.
+    
+    Also modify one of the existing unit tests to catch this problem.
+    
+    Change-Id: I742a4ae4e0fc17cd9ae5e4424c2edd38e2bc50a2
+
+commit 3d4257fbd3dbfd7b64de22c2aae08a9e4cce9921
+Author: Davanum Srinivas <dims@linux.vnet.ibm.com>
+Date:   Sat Nov 24 08:54:20 2012 -0500
+
+    Fix ListOpt to trim whitespace
+    
+    - throw in an extra strip() in the list parsing code
+    - add a test case to verify that it works!
+    
+    Fixes LP #1079299
+    
+    Change-Id: I4f0864c72ecd2569d0461c301acda395c87a93e0
+
+commit f1133ad6da81ed1f4f99c163ba3bd49b9ccd3e16
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Fri Nov 23 20:25:12 2012 +0000
+
+    Add another duplicate opt test case
+    
+    This gets the code coverage of the tests back up to 100%.
+    
+    Change-Id: I737c1cfa52d10b3813237a9cb88b15211e0872c1
+
+commit 877e625ca9fe1d93a924c8df6656fb7c56ccbb72
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Fri Nov 23 15:12:12 2012 +0000
+
+    Hide the GroupAttr conf and group attributes
+    
+    There's no reason why an option group shouldn't have options called
+    'group' or 'conf'.
+    
+    Add a test case which would have failed because the 'conf' attribute
+    would have been a ConfigOpts instance and fix it by making those
+    attributes private.
+    
+    Change-Id: Ic3e41a546c0d1b7b6aae04e1dbac2933ac661f57
+
+commit 42376535a91460ea538b7c8c60efee30fcd28d21
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Fri Nov 23 11:45:04 2012 +0000
+
+    Fix broken --help with CommonConfigOpts
+    
+    Since we switched to argparse, the way help strings are interpolated
+    have changed and broken --help with the options registered by
+    CommonConfigOpts.
+    
+    Fix and add a new test case which would catch the issue.
+    
+    Change-Id: I10e42efe4721e22ff41d0efbf390c805ccb9a6a0
+
+commit 39eb58f6f010d08d00d06c596594b320de1fd8a9
+Author: Joe Heck <heckj@mac.com>
+Date:   Sun Nov 11 21:00:42 2012 +0000
+
+    updating sphinx documentation
+    
+    * adding openstack theming (copied from keystone project theme)
+    * updating .gitignore to ignore generated API docs
+    * updated formatting in index.rst page
+    * updaed openstack/common/processutils.py to match hacking docstring
+    * updated docstrings to resolve sphinx warnings
+    
+    Change-Id: Ie89afe20eeab1efd2daf440fc65ccdf90f723c51
+
+commit 6e3307be97ccba18793282582a6c1dd4509285fa
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Mon Nov 12 16:26:08 2012 -0500
+
+    Don't reference argparse._StoreAction
+    
+    This is a private implementation detail of argparse, so we don't want
+    to rely on it. Just sub-class Action instead.
+    
+    Change-Id: Icfcc782cc334d1bc1d4940bec23af48ead692a9d
+
+commit 33b6139fb2660fa230865d974f04156e3fe88760
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Mon Nov 12 16:26:02 2012 -0500
+
+    Fix minor coding style issue
+    
+    Use the same style of exception handling used everywhere else.
+    
+    Change-Id: I5436de1996f69ea6210f48c11ef231eb950ad21d
+
+commit 45613f3aa7259c1192ea58919d144d1ce0c97f38
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Mon Nov 12 16:26:00 2012 -0500
+
+    Remove ConfigCliParser class
+    
+    This sub-class of ArgumentParser isn't really justified anymore.
+    
+    Change-Id: I705224b6e18e4609a8e2deba283767233b0bd578
+
+commit cbe7cfa46ab56ea98f08489e29cbb3949bcf37d5
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Mon Nov 12 16:25:59 2012 -0500
+
+    Add support for positional arguments
+    
+    argparse makes it awkward to implement the current cfg API where we
+    simply return the leftover arguments to the caller.
+    
+    Very few cfg users actually rely on this functionality and for those
+    cases it probably makes more sense for them to explicitly register
+    positional arguments or sub-parsers.
+    
+    Add support for positional arguments via a 'required' Opt attribute:
+    
+      opt = StrOpt('foo', positional=True)
+      conf.register_cli_opt(opt)
+      conf(['bar'])
+      conf.foo == 'bar'
+    
+    Change-Id: Iea746d710237e1ea26c1ef4871643941d1df09bd
+
+commit b5f84bf854b4ea45ca87ae8cb4124cf317162f77
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Mon Nov 12 16:25:58 2012 -0500
+
+    Use stock argparse behaviour for optional args
+    
+    optparse would print "Options" but argparse prints "optional arguments".
+    
+    The default argparse behaviour is fine, let's stick with that.
+    
+    Change-Id: Ib53a2581af9d776e9a7c1cd90eebe89b70034e57
+
+commit 6d3ff9cc3c5c1b9b2ef6dcc7689553d19e3f85b3
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Mon Nov 12 16:25:57 2012 -0500
+
+    Use stock argparse --usage behaviour
+    
+    optparse would substitute the program name for %prog, but argparse
+    requires %(prog)s. Also, optparse would print 'Usage:' whereas
+    argparse prints 'usage:'.
+    
+    Neither optparse behaviour that's worth retaining, let's just use
+    the default argparse behaviour.
+    
+    Change-Id: Ied2acb37c366f1a45aed72b6b76f11e2de23828e
+
+commit 17e3addb2b81ae0238d23e59133c2357d409144c
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Mon Nov 12 16:25:55 2012 -0500
+
+    Use stock argparse --version behaviour
+    
+    optparse prints the version to stdout, argparse prints the version to
+    stderr.
+    
+    There's no need to preserve the old optparse behaviour, let's just stick
+    with argparse behaviour.
+    
+    Change-Id: Ie141c72112a63149d098afa9db55a95a309e79d7
+
+commit fb800a211f85b20301a273e39e9288edf23d0de8
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Mon Nov 12 16:25:54 2012 -0500
+
+    Remove add_option() method
+    
+    argparse just has an add_argument() method, so there's no reason for us
+    to keep add_option() around.
+    
+    Change-Id: I6f4be089ceaf0fd8c4c99565af392b445916172e
+
+commit 1ed027d07c150ad0cd1f9b6304e7a99c163243b9
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Mon Nov 12 16:25:52 2012 -0500
+
+    Completely remove cfg's disable_interspersed_args()
+    
+    The use case for disable_interspersed_args() is that nova-manage
+    needs to be able to parse sub-commands. We now have a
+    add_cli_subparsers() method which better supports this use case.
+    
+    Change-Id: I1fcd15889745fe4ddff0ac4bacf385004f9b61af
+
+commit a4fcc4cb5916f0123d47ccdfbf4f1fee1c629401
+Author: Laurence Miao <laurence.miao@gmail.com>
+Date:   Sat Oct 6 21:08:14 2012 +0800
+
+    argparse support for cfg
+    
+    * openstack/common/cfg.py
+      Optparse is fading out since python 2.7, this
+      patch will help openstack/common work on more
+      advanded version of python(argparse).
+      Now, disable_interspersed_args() has no effect.
+      Added new method add_cli_subparsers, return
+      argparse  subparser, for  usages  such  as
+      subcommand.
+    
+    * tests/unit/test_cfg.py
+      SubcommandTestCase added.
+      Disabled test_disable_interspersed_args test entry
+      for happiness of tox, temporarily.
+      Modified test_help for port of argparse.
+    
+    * tools/pip-requires
+      include argparse module for python 2.6
+    
+    Change-Id: Ie5cbde1a92a92786d64dea0ddfcfbf288c29f960
+
+commit 12c7d781471566f57c1884ce4c4978565913741b
+Author: David Ripton <dripton@redhat.com>
+Date:   Wed Oct 31 13:14:52 2012 -0400
+
+    Add a missing comma in a docstring.
+    
+    Change-Id: I1f75c7da1ab1543637198ecbb80a81b39ad35fde
+
+commit 85851dbec62a11458204a5b32c60d63637b4aa0e
+Author: Julien Danjou <julien@danjou.info>
+Date:   Fri Oct 26 16:55:17 2012 +0200
+
+    cfg: fix required if option has a dash
+    
+    If an option has a dash in it and is required, the check fails because it
+    tries to self._get() on the name (with dash) rather than the dest (with
+    underscore).
+    
+    Change-Id: I6448019f70f98bc2e58a325d0cf9ce88b8bb085b
+    Signed-off-by: Julien Danjou <julien@danjou.info>
+
+commit f4cf739349ed66d6944fd02b8f1c6c50bc23b4a9
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Mon Aug 13 11:35:25 2012 +0100
+
+    cfg: clean up None value handling
+    
+    Remove the need for an internal NoneValue class by making the existence
+    of the 'default' or 'override' keys signify whether a default or
+    override is set.
+    
+    Change-Id: Iacf49553df5ba8414307904a3ee334c7b8c55758
+
+commit a88773ac6dcea042dc7e946316de013538969f0f
+Author: Vishvananda Ishaya <vishvananda@gmail.com>
+Date:   Fri Aug 10 14:28:59 2012 -0700
+
+    Allow set_default and set_override to use None
+    
+    The current implementation interprets set_default('foo', None) and
+    set_override('foo', None) as 'clear the existing default or override',
+    which makes it impossible to override a value with None.
+    
+    This patch adds support for overriding with a None value by adding
+    a special internal class. set_override('foo', None) will now override
+    the existing value with None. This is a slight change to the existing
+    behavior, so this patch adds two calls for the old functionality of
+    clearing defaults and overrides. Example syntax for the new calls
+    are shown below:
+    
+    conf.clear_default('foo')
+    conf.clear_override('foo')
+    
+    The patch also updates the tests to reflect the change in functionality
+    and adds new tests to verify the new functionality.
+    
+    Fixes bug 1035478
+    
+    Change-Id: Iee5e20e44da9bef6b86e0483ab0b48b625fe503c
+
+commit ae93f9f03b0e0c03d3606c4fdbcfc4e2d4cdd55b
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Sat Aug 11 12:21:51 2012 +0100
+
+    Tilde expansion for --config-file and --config-dir
+    
+    Fixes bug #1012671
+    
+    Allow a filename starting with ~ or ~user to be passed for
+    --config-file or --config-dir.
+    
+    Change-Id: I67705401ed1c35c0cc2161095e36616552740aba
+
+commit bf799b73eabb104804a120f174c5fcaa9ef9d3bb
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Tue Jul 31 12:16:28 2012 +0100
+
+    Add import_opt() method to ConfigOpts
+    
+    Related to blueprint cfg-global-object
+    
+    When using the global config object pattern, you often have modules
+    which define options that are referenced in other options.
+    
+    So, for example if module A defined option 'foo' and module be needed
+    to reference that option, you might do:
+    
+      import A
+      print CONF.foo
+    
+    However, this makes it entirely unclear to the casual reader why
+    module A was imported.
+    
+    Nova has a flags.DECLARE() function that helps with this problem
+    by allowing you to do:
+    
+      flags.DECLARE('foo', 'A')
+    
+    The function simply imports module A and checks that the 'foo'
+    option is now defined in the global config object.
+    
+    This is fine, but it is also implicit that this function applies
+    to the global config object. Instead, let's do the following:
+    
+      CONF.import_opt('foo', 'A')
+    
+    Change-Id: I7b98f5be71068bbde70cc0eab991eaebb577de52
+
+commit c8f7c3c93948a8db22d6d9cfef75241210be3e1a
+Author: Giampaolo Lauria <lauria@us.ibm.com>
+Date:   Fri Jul 20 16:41:45 2012 -0400
+
+    Modifies _is_opt_registered fcn to check for duplicate opts
+    
+    This change fixes bug 999307
+    
+    Currently, the check for duplicate options is done by checking
+    whether they are the same object. The proposed fix is to check whether
+    all the object fields have the same value.
+    
+    Change-Id: I2b72d630a0c8821df1d81e25d316d8d9195be492
+
+commit dcce372a4e8d29cb3a0c0a8e468a777a71de415f
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Tue Jul 17 05:52:51 2012 +0100
+
+    cfg: allow empty config values
+    
+    Fixes bug #1025522
+    
+    Commit 83044a7 caused this to stop working in Quantum:
+    
+      api_extensions_path =
+    
+    and could only be worked around with:
+    
+      api_extensions_path = ""
+    
+    Change-Id: I8c1a57225a2c135e6baf567b8e71d61e974da4e2
+
+commit b16b92a83abdaaf3e3007e71533f23703e959f86
+Author: Vincent Untz <vuntz@suse.com>
+Date:   Thu Jul 5 14:51:26 2012 +0200
+
+    cfg: Fix typo in documentation
+    
+    with with -> with
+    
+    Change-Id: I7a524c024b05639ec7ab4d57b6a52f70a95d2235
+
+commit 0ddee649f3053ba738209920c310315f5d2d38ac
+Author: Gary Kotton <gkotton@redhat.com>
+Date:   Sun Jun 17 04:05:37 2012 -0400
+
+    Update common code to support pep 1.3.
+    bug 1014216
+    
+    Change-Id: I3f8fa2e11c9d3f3d34fb20f65ce886bb9c94463d
+
+commit 9d2119aa388a20f3f758e013382e0e8224178608
+Author: Johannes Erdfelt <johannes.erdfelt@rackspace.com>
+Date:   Fri Jun 8 17:08:14 2012 +0000
+
+    Use 'is not None' instead of '!= None'
+    
+    Fixes bug 1010570
+    
+    pep8 suggests the former over the latter
+    
+    Change-Id: Ice3a3b1cc2eea9228fffb4ee40fc360ff79054a3
+
+commit c103186111bfbefb5cf8dd84f79cfb63273d18c4
+Author: Russell Bryant <rbryant@redhat.com>
+Date:   Wed Jun 6 21:57:14 2012 -0400
+
+    Fix a pep8 error.
+    
+    Change-Id: Iab7e703254a354764a5667425ef887b0afc89115
+
+commit 38105a582eaa954cf306f4d4dfe1ca09df2419db
+Author: Vishvananda Ishaya <vishvananda@gmail.com>
+Date:   Wed Jun 6 11:26:18 2012 -0700
+
+    Adds support for bol and eol spaces to ini files
+    
+      * Fixes bug 1009639
+      * Adds tests
+    
+    Change-Id: Id00563dfcc6f143c3e86ec380d66cffc967b8c48
+
+commit c377d8fafc2001b85152bb3688dd54758a1070ab
+Author: Joe Gordon <jogo@cloudscaling.com>
+Date:   Mon May 21 18:17:35 2012 -0700
+
+    Add support to include config aliases
+    
+    Implements blueprint config-aliases
+    
+    * Supports loading deprecated aliased options from a config file
+    * Supports using deprecated aliased CLI options
+    * For MultiStrOpt Can use mix of name and alias
+    
+    Change-Id: I04678880bc8ee1f85335f5656367bd1437245c6e
+
+commit 072addef6f2740fe46f2aba63dd4f95a0a1299df
+Author: Kevin L. Mitchell <kevin.mitchell@rackspace.com>
+Date:   Mon Jun 4 10:27:36 2012 -0500
+
+    Fix pep8 errors.
+    
+    Fixes a couple of pep8 errors that appeared due to a pep8 tool update.
+    
+    Change-Id: Ida70b1fb962529d3a157f44dcf2e71af773a4431
+
+commit 5b5a5ab240a4b82ddc128c3763b59e0ba51dd022
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Tue May 29 08:27:05 2012 +0100
+
+    cfg: add a global CONF object
+    
+    Implements blueprint cfg-global-object
+    
+    Add an instance of the CommonConfigOpts class to the cfg module's
+    global namespace.
+    
+    The usage pattern is:
+    
+      from openstack.common import cfg
+    
+      opts = [
+          cfg.StrOpt('foo', default='blaa'),
+          cfg.StrOpt('bar', default='blaa'),
+          ]
+    
+      CONF = cfg.CONF
+      CONF.register_opts(opts)
+    
+      def do_something_later():
+          print CONF.foo, CONF.bar
+    
+      def main():
+          CONF(project='pulsar')
+    
+    Change-Id: I77e87b1e186c243b2638a4b1c202f865249dafce
+
+commit a4b2511dae14ea1cce7017c51d2730c870995cb2
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Tue May 29 08:27:05 2012 +0100
+
+    cfg: add generators for iterating over all options
+    
+    We have a few places now where we do:
+    
+      for opt in self.opts:
+          foo(opt)
+    
+      for group in self.groups:
+          for opt in group.opts:
+              foo(opt, group)
+    
+    Use generators to turn this into simply:
+    
+      for opt, group in self.all_opts():
+          foo(opt, group)
+    
+    Change-Id: I7a32779c20caeb1bacb85528d7e36c3c18c6c16a
+
+commit 75b581e93b41cec82da982d3278af97be6bc773f
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Tue May 29 08:27:05 2012 +0100
+
+    cfg: move constructor args to __call__() args
+    
+    In order to effectively use a global ConfigOpts object, you
+    need to be able to initialize the global object with none of
+    the information we currently require at construction.
+    
+    By moving those constructor args to the __call__() method,
+    we enable the global object usage model but also make the API
+    generally more flexible. For example, you can now reset the
+    object and re-use it for parsing a different set of config
+    files with the same options.
+    
+    There are a couple of other minor behavior changes as a
+    result:
+    
+      - print_usage() and print_help() no longer works before
+        the object has been called to parse options
+    
+      - registration of duplicate short options are no longer
+        detected until the options are parsed
+    
+      - the --config-file and --config-dir options aren't
+        registered until just before parsing the options since
+        the default set of config files can be specified at
+        that time
+    
+      - find_file() can't be used until after the options have
+        been parsed, again because of the late registration
+        of --config-file and --config-dir
+    
+    Finally, an unregister_opt() method is added to support
+    the re-registeration of the --config-file and --config-dir
+    options.
+    
+    Change-Id: I650d8e299e92cbc5d10da47a7ce1b73ca8066bd0
+
+commit c7e16af82215234f8d8c8f5617202f2e77a3e005
+Author: Russell Bryant <rbryant@redhat.com>
+Date:   Wed May 16 11:34:29 2012 -0400
+
+    Run pep8 on tests.
+    
+    I noticed that pep8 wasn't running on the tests.  This patch fixes that,
+    as well as a couple of pep8 errors in test_cfg.
+    
+    Change-Id: I4429bfe6813a2e9394efb1753cbebbadb9f23833
+
+commit 09327ad97206a9856ced348cdd6a54cc66dcc5a8
+Author: Joe Gordon <jogo@cloudscaling.com>
+Date:   Mon May 14 13:36:42 2012 -0700
+
+    Alphabetize imports in openstack/common/cfg.py
+    
+    In preparation for enabling alphabetized import checking in Nova
+    
+    Change-Id: I709fca6a121ba44df193757e5ad838de710c2f15
+
+commit 6c9c437f29de055a600ecace43ef782c16ebf877
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Sat May 12 11:52:53 2012 +0100
+
+    cfg: make reset() clear defaults and overrides
+    
+    Fixes bug #998396
+    
+    Both Nova and Keystone need to clear the overrides on their config
+    object between test runs. It's reasonable to expect the reset()
+    method would do this, so let's make it so.
+    
+    Also add a clear() method with the old behaviour.
+    
+    Change-Id: I192c5bb07e81f0fb844fa2fd429dc2e7133800de
+
+commit cd5456bc78917751fe511a66b4115844a6e94976
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Thu May 10 14:25:19 2012 +0100
+
+    cfg: automatically create option groups
+    
+    Implements blueprint cfg-auto-create-groups
+    
+    Remove the restriction that groups must be explicitly created. Often
+    you only need a group to have a name (not e.g. a title or help string)
+    so we can easily just auto-create groups for that case.
+    
+    Change-Id: I150ab3900e3aad0068b93487c8d396d21d26cfea
+
+commit 358c9aa23b226d8f4ae8da3add1a7595126aeb32
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Thu May 10 14:25:19 2012 +0100
+
+    cfg: allow options to be marked as required
+    
+    Implements blueprint cfg-required-options
+    
+    Add a 'required' flag to option schemas:
+    
+      StrOpt('foo', required=True)
+    
+    which causes a RequiredOptError exception to be raised if the
+    user fails to supply a value for the option on the CLI or in
+    a config file.
+    
+    Change-Id: Ied7bb25f0c1582c4991d0f212f4871b9358b73fb
+
+commit 4e67d716e9ee64468fbccd32d40f33e805227aac
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Thu May 10 14:25:19 2012 +0100
+
+    cfg: use a list comprehension instead of map()
+    
+    Change-Id: Iaccb71d83d957aae77fa0f6bc71952b899d3a159
+
+commit ecdd78bf99d8f8fcf06c15a9a80ddb8e54364e36
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Tue May 1 08:59:18 2012 +0100
+
+    New ConfigOpts.find_file() for locating conf files
+    
+    Most services have the need to locate files like api-paste.ini or
+    policy.json.
+    
+    This new method attempts to find these files by looking alongside
+    the config files already parsed by ConfigOpts and, failing that,
+    falls back to a standard set of directories.
+    
+    Change-Id: I95897816485b88f78854df194cab7872d7c5452a
+
+commit 59610964dd35b730582cbdb08671ae3bdadf2141
+Author: Eoghan Glynn <eglynn@redhat.com>
+Date:   Mon Apr 23 21:06:56 2012 +0100
+
+    Support for directory source of config files
+    
+    Implements bp cfg-config-dir
+    
+    Allow multiple config files to be pulled in from a config directory,
+    as opposed to individual config files being explicitly enumerated.
+    
+    This logic is enabled using the --config-dir=/path/to/config CLI option,
+    causing config to be retrived from all matching /path/to/config/*.conf
+    files.
+    
+    Sections may be re-opened across config files, and all config items
+    must reside in an explicitly specified section (i.e. it does not default
+    to [DEFAULT]). This behavior is unchanged.
+    
+    Change-Id: Ia29dffe82dfb4742dcf3e8d36b376d906a2492cf
+
+commit 122dc40da12c86de673ea7a7d73f4b35f3748cf1
+Author: Brian Waldon <bcwaldon@gmail.com>
+Date:   Wed Apr 25 16:11:45 2012 -0700
+
+    Provide file extension when when looking for files
+    
+    * Allow an extension to be passed to find_config files, defaulting to '.conf'
+    
+    Change-Id: I022a3b28d9067158e9ed0da741a5e72cb73af167
+
+commit cb4acbfa481831c5e3e0494f1ef762c416603b19
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Tue Apr 24 14:56:07 2012 +0100
+
+    Some refactoring of the cfg cache
+    
+    A fairly misc bunch of changes:
+    
+     - init cache before registering config-file and just let
+       register_cli_opt() clear the empty cache
+    
+     - use @__clear_cache on set_default() and set_override() since
+       these are just used by the unit tests and doing so allows us
+       to kill _remove_from_cache()
+    
+     - use @__clear_cache on reset() too
+    
+     - remove recursion from _get() and the substitute param
+    
+     - just use (group_name, opt_name) as the cache key
+    
+    Change-Id: I66934e748eca9ec03e44d7f80a7e10d96a77d8eb
+
+commit ad859c16310bce0ca38b6d57df7000e58792d45e
+Author: Yuriy Taraday <yorik.sar@gmail.com>
+Date:   Sat Apr 14 01:16:35 2012 +0400
+
+    Add caching to openstack.common.cfg
+    
+    Speedup of 'nova list' benchmark by up to 40%, eliminates 3 lines in
+    top-10 cProfile methods.
+    
+    Change-Id: I2d4636f94d88b4a7e38d1565fdd4d1b8a89e560e
+
+commit aff6ff33fdeae4f3f95258c1eb8f5363eaefb9d3
+Author: Rick Harris <rconradharris@gmail.com>
+Date:   Thu Mar 29 04:51:09 2012 +0000
+
+    Typofix, OptionGroup should be OptGroup.
+    
+    Change-Id: I67473bb847759ce719876e08f8a894e000f11bb3
+
+commit fbdf1acb681df10e2723fa2b1dcc8626b311bc78
+Author: Rick Harris <rconradharris@gmail.com>
+Date:   Wed Mar 28 18:37:16 2012 +0000
+
+    Use absolute import for iniparser.
+    
+    Fixes bug 967400
+    
+    Change-Id: I0c028f6b5285cd641dedbcea3132224e404b004e
+
+commit 4b81c673c5f3334753c8bb9ecafa24edbfc0ba90
+Author: Johannes Erdfelt <johannes.erdfelt@rackspace.com>
+Date:   Wed Mar 14 22:24:14 2012 +0000
+
+    Finish implementing MultiStrOpt
+    
+    Fixes bug 955308
+    
+    Previously only multiple string options from the CLI were supported.
+    This change adds support for config files too and merges the results
+    from both CLI and config files.
+    
+    Change-Id: I642408c03ed295fac050105fd4380940e876f228
+
+commit 0e4f86ec0998779b1ef4a1ae72a985d823886ff4
+Author: Eoghan Glynn <eglynn@redhat.com>
+Date:   Thu Mar 22 16:54:26 2012 +0000
+
+    Avoid leaking secrets into config logging.
+    
+    Implements bp cfg-password-options
+    
+    Allow options to be declared secret so that their value is
+    obfuscated before logging.
+    
+    Change-Id: Ie2168d218b029d9c12fa5b48342cd5b17b2cc77a
+
+commit dd018d72b9b38992b8ebb8645beb11958e527b47
+Author: Joe Gordon <jogo@cloudscaling.com>
+Date:   Tue Mar 13 17:25:19 2012 -0700
+
+    Fix bug 954488
+    
+    Change-Id: I99b764310c575e70aff4a6790e8ba8f55e43deeb
+
+commit ef808088f6e5f3b04b65e0b5b2bd18902f6a235b
+Author: Doug Hellmann <doug.hellmann@dreamhost.com>
+Date:   Fri Mar 9 11:11:16 2012 +0000
+
+    fix restructuredtext formatting in docstrings
+    
+    blueprint sphinx-doc-cleanup
+    bug 94516
+    
+    - Correct parameter declarations, list formatting, cross-references, etc.
+    - We don't need "let" in generate_autodoc_index.sh since we aren't doing math.
+    - Change conf.py to not prefix class and function names with full namespace
+      in generated output to save width on the screen.
+    
+    Change-Id: I9adc8681951913fd291d03e7142146e9d46841df
+
+commit bdebe01b1dc38cc6b0db598b070d97017eb39779
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Wed Feb 22 16:29:59 2012 +0000
+
+    Add ConfigOpts.print_help()
+    
+    Keystone uses this optparse method.
+    
+    Change-Id: Ic840b2fb2234a12cd94ca671a8d90cd2affe3a5e
+
+commit f8e620d53f00194d6bd137963e7ea3c160566773
+Author: Zhongyue Luo <lzyeval@gmail.com>
+Date:   Fri Jan 20 01:10:58 2012 -0500
+
+    cfg: fix a small comment typo
+    
+    Change-Id: I2646d7e674ef3d1759558e820f051cc5e7f3b4ae
+
+commit 8c589d5634c947a07c68bdfe69e6c063bda49528
+Author: Zhongyue Luo <lzyeval@gmail.com>
+Date:   Sun Feb 12 16:04:21 2012 +0800
+
+    cfg: unneeded multiple inheritance
+    
+    Fixed bug #927650
+    
+    In python=<2.6, collections.Mapping inherits from
+    collections.Sized, collections.Iterable, and collections.Container
+    which are also subclasses of object.
+    
+    Change-Id: I6238c683324127abd9fb637748a10b6bdb2961e0
+
+commit b54d839ba9cdc12778368c5037a8a2f0217f0969
+Author: Zhongyue Luo <lzyeval@gmail.com>
+Date:   Sat Feb 11 20:18:08 2012 +0800
+
+    PEP8 cleanup (openstack-common)
+    
+    Fixes bug #930625
+    
+    Remove backslash continuations in openstack-common.
+    Fix type checking taboos.
+    
+    Change-Id: I49ddb9ff5fa5af760dcfccb52cb4793b71e02f19
+
+commit 76a2802013b29c2f5313b04325a3e9f075fff09b
+Author: Zhongyue Luo <lzyeval@gmail.com>
+Date:   Fri Feb 10 17:21:32 2012 +0000
+
+    Backslash continuations (misc.)
+    
+    Fixes bug #925166
+    
+    This patch for packages which have few backslash continuations.
+    
+    Follow up patches will be for packages network, scheduler, virt,
+    db/sqlalchemy, tests, and api/openstack.
+    
+    Change-Id: I4200010b47b33fa8b9115b5d379b543200f6668d
+
+commit 93e99f7bb50b7b5f1b908cb8f633a63a85fdf50d
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Fri Feb 10 17:14:52 2012 +0000
+
+    Disable ConfigParser interpolation (lp#930270)
+    
+    This breaks e.g.
+    
+      volume_name_template=volume-%08x
+      instance_name_template=instance-%08x
+    
+    and is not part of the API contract anyway. We use $opt based value
+    interpolation.
+    
+    Change-Id: I7ba566ae7c9a77322b52c67c5e1ffbffb760f0fc
+
+commit 75b173c0b567ae7e975747b74cd983806027f8ac
+Author: Anthony Young <sleepsonthefloor@gmail.com>
+Date:   Thu Feb 2 23:28:24 2012 +0000
+
+    Implements blueprint separate-nova-volumeapi
+    
+    [...]
+     ** Removes flag osapi_extension and replaces with osapi_compute_extension and osapi_volume_extension
+    [...]
+    
+    Change-Id: I4c2e57c3cafd4e1a9e2ff3ce201c8cf28326afcd
+
+commit 93d043c77c51804f69bb9b6e30359d5713b6e671
+Author: Vishvananda Ishaya <vishvananda@gmail.com>
+Date:   Thu Feb 2 23:25:53 2012 +0000
+
+    Makes common/cfg.py raise AttributeError
+    
+      * fixes bug 915039
+      * includes test
+    
+    Change-Id: I67b886be3b5af3763f52fffe54085975d61d61eb
+
+commit 6f986bdcd603777541e38c8f5e4acb7991f3a2f3
+Author: lzyeval <lzyeval@gmail.com>
+Date:   Thu Feb 2 23:24:46 2012 +0000
+
+    PEP8 type comparison cleanup
+    
+    Fixes bug #910295
+    
+    The None, True, and False values are singletons.
+    
+    All variable *comparisons* to singletons should use 'is' or 'is not'.
+    All variable *evaluations* to boolean should use 'if' or 'if not'.
+    
+    "== None", "== True", "== False", and "!= None" comparisons in sqlalchemy's
+    where(), or_(), filter(), and_(), and select() functions should not be changed.
+    
+    Incorrect comparisons or evaluations in comments were not changed.
+    
+    Change-Id: I087f0883bf115b5fe714ccfda86a794b9b2a87f7
+
+commit b0a32ca9e4e49103d8b6c615fddb2febfe53c595
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Fri Jan 27 20:01:39 2012 +0000
+
+    Add the Mapping interface to cfg.ConfigOpts
+    
+    Implements blueprint cfg-mapping interface
+    
+    With cfg, option values are accessed via attributes on ConfigOpts
+    objects e.g.
+    
+      conf = ConfigOpts()
+      conf.register_opt(StrOpt('foo'))
+      conf()
+      print conf.foo
+    
+    One use case that isn't easily supported with option values represented
+    this way is iterating over all the registered options. Standard
+    interfaces for listing attributes on an object aren't suitable because
+    they will list more than just the options.
+    
+    For this use case alone, it's worth having ConfigOpts implement the
+    mapping interface. That way we can do e.g.
+    
+      for opt, value in conf.items():
+          print "Option %s = %s" % (opt, value)
+    
+    It's interesting to compare argparse's approach to this problem - option
+    values are attributes on a Namespace object which has no attributes or
+    methods to pollute the namespace of option names. This is a nice
+    approach, but would mean that we would be passing around both a
+    ConfigOpts object and a Namespace object. That's a bit too much overhead,
+    and the mapping interface provides a usable workaround where there is a
+    conflict.
+    
+    Change-Id: Ic113919a20291048f962999229c76884ebdd5ad8
+
+commit 23e2286135e1454a7dafdea7ff239abf594c07ce
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Mon Jan 23 15:21:50 2012 +0000
+
+    Add cfg test case for recursive substitution
+    
+    i.e. test that if blaa='blaa', foo='$blaa' and bar='$foo' that
+    the value of bar after substitutions is 'blaa'
+    
+    Change-Id: I01d370832a871603b7cb47bfb3546f6aaad8c34d
+
+commit ac1c384499049fedec1bc934697d406f6854f0c4
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Mon Jan 23 10:42:07 2012 +0000
+
+    Add support to cfg for disabling interspersed args
+    
+    Implements blueprint cfg-disable-interspersed-args
+    
+    Nova currently relies on cfg being implemented with optparse because it
+    uses optparse's disable_interspersed_args()
+    
+    The use case for this is if you do:
+    
+      $> nova-manage --verbose create --project foo --user bar
+    
+    you want invoking ConfigOpts() to return:
+    
+      ['create', '--project', 'foo', '--user', 'bar']
+    
+    as the "extra" args rather than aborting when it doesn't recognize the
+    --project arg.
+    
+    This is a reasonable use case for cfg to support and it should just have
+    {disable,enable}_interspersed_args() methods.
+    
+    If we ever switch from optparse to argparse, we'll do something like this:
+    
+      parser.add_argument('--verbose')
+      ...
+      parser.add_argument(
+        'extra_args',
+        nargs=argparse.REMAINDER if disable_interspersed_args else '*')
+      ...
+      ns = parser.parse_args(...)
+      extra_args = ns.extra_args
+    
+    i.e. we will need an 'extra_args' multi-value positional argument in any
+    case and we'll just pass nargs=REMAINDER if we want trailing options to
+    be included in the extra args.
+    
+    Change-Id: I3ecb7dc18230327cf5aaaa7d832224e64aafa40c
+
+commit a877ff9d785a4ae8df5f52d8b3bd79670367cd8e
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Thu Jan 12 07:04:39 2012 +0000
+
+    Get cfg test cases to 100%
+    
+     * Test cfg.find_config_files() sys.argv usage
+     * Test boolean values in cfg config files
+     * Finish off incomplete cfg bad value test case
+     * Test register_opts() and register_cli_opts()
+     * Test the quiet ignoring of option/group re-registration
+     * Test cfg print_usage()
+     * Test explicit option group titles
+    
+    Change-Id: Icbe4b7c48d4785551f06873821d1be758adf942c
+
+commit 9b4801f236d8613a336b976648c7a6c51c6e411e
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Thu Jan 12 06:55:25 2012 +0000
+
+    Add cfg test case for exceptions' __str__ methods
+    
+    Increases coverage from 93% to 97%
+    
+    Change-Id: I6a41b31e29238831fe2a888d5d64dc0bffd770c0
+
+commit b8ce5777af175bbe7c47896e80ecd378407c0393
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Thu Jan 12 06:33:00 2012 +0000
+
+    Fix some cfg test case naming conflicts
+    
+    As pointed out by Vish, there are duplicates of:
+    
+      OverridesTestCase::test_default_override
+      OverridesTestCase::test_override
+      SadPathTestCase::test_conf_file_not_found
+    
+    Also, rename the ConfigFileOptsTestCase so it is obvious they
+    don't clash with the tests by the same name in CliOptsTestCase.
+    
+    Change-Id: I1d650d05d32501623cfed8f0b6399858d101ae02
+
+commit ab488789f514fc6584913bf7b81945b59a72dbf5
+Author: Mark McLoughlin <markmc@redhat.com>
+Date:   Tue Jan 10 20:51:49 2012 +0000
+
+    Add new cfg module
+    
+    As described here:
+    
+      http://wiki.openstack.org/CommonConfigModule
+    
+    The module implements an API for defining configuration options and
+    reading values for those options that a user may have set in a config
+    file or on the command line.
+    
+    The module is successfully in use in both Nova and Glance. Some work
+    remains in Nova to switch from using it under a gflags compatible
+    shim layer, but Glance is using it fully.
+    
+    There doesn't appear to be any blockers to other projects moving over
+    to it fairly easily. Swift would perhaps be the next project to tackle.
+    
+    Just to go through potential future compatibility concerns:
+    
+      - Nova (the scroundrel) hackily uses the private ConfigOpts::_oparser
+        in order to disable interspersed args. This was just for nova-manage
+        and can probably be resolved some other way. In any case, Nova
+        shouldn't switch to openstack-common's cfg API until it removes this
+        hack.
+    
+      - the CommonConfigOpts subclass set of logging related options is
+        perhaps assuming too much about what configuration options should
+        be common across all the projects. However, it seems a fairly sane
+        set and the worst that can happen is that projects avoid using it.
+    
+      - the parameters to the Opt constructor fairly closely mirror
+        optparse, but they're fairly generic and shouldn't prevent us from
+        switching to e.g. argparse
+    
+      - stuff like %prog expansion in the ConfigOpt's usage ctor param is a
+        similar concern, but it's a very minor concern.
+    
+      - find_config_files() search path is perhaps too much policy for
+        openstack-common; however, it is probably as generic as it could
+        be and projects which need a different policy can just not use
+        the function
+    
+    On the whole, I think we're in good shape wrt future compatibility.
+    
+    Change-Id: I279a9db7806d80aff3b9b085b4a9e4fb193662f9
