@@ -515,7 +515,8 @@ class Opt(object):
 
     def __init__(self, name, dest=None, short=None, default=None,
                  positional=False, metavar=None, help=None,
-                 secret=False, required=False, deprecated_name=None):
+                 secret=False, required=False,
+                 deprecated_name=None, deprecated_group=None):
         """Construct an Opt object.
 
         The only required parameter is the option's name. However, it is
@@ -531,6 +532,7 @@ class Opt(object):
         :param secret: true iff the value should be obfuscated in log output
         :param required: true iff a value must be supplied for this option
         :param deprecated_name: deprecated name option.  Acts like an alias
+        :param deprecated_group: the group containing a deprecated alias
         """
         self.name = name
         if dest is None:
@@ -548,6 +550,7 @@ class Opt(object):
             self.deprecated_name = deprecated_name.replace('-', '_')
         else:
             self.deprecated_name = None
+        self.deprecated_group = deprecated_group
 
     def __ne__(self, another):
         return vars(self) != vars(another)
@@ -564,11 +567,16 @@ class Opt(object):
         """
         return self._cparser_get_with_deprecated(cparser, section)
 
-    def _cparser_get_with_deprecated(self, cparser, section):
+    def _cparser_get_with_deprecated(self, cparser, section, multi=False):
         """If cannot find option as dest try deprecated_name alias."""
-        if self.deprecated_name is not None:
-            return cparser.get(section, [self.dest, self.deprecated_name])
-        return cparser.get(section, [self.dest])
+        names = [(section, self.dest)]
+
+        dname, dgroup = self.deprecated_name, self.deprecated_group
+        if dname or dgroup:
+            names.append((dgroup if dgroup else section,
+                          dname if dname else self.dest))
+
+        return cparser.get(names, multi)
 
     def _add_to_cli(self, parser, group=None):
         """Makes the option available in the command line interface.
@@ -582,9 +590,11 @@ class Opt(object):
         """
         container = self._get_argparse_container(parser, group)
         kwargs = self._get_argparse_kwargs(group)
-        prefix = self._get_argparse_prefix('', group)
+        prefix = self._get_argparse_prefix('', group.name if group else None)
+        deprecated_name = self._get_deprecated_cli_name(self.deprecated_name,
+                                                        self.deprecated_group)
         self._add_to_argparse(container, self.name, self.short, kwargs, prefix,
-                              self.positional, self.deprecated_name)
+                              self.positional, deprecated_name)
 
     def _add_to_argparse(self, container, name, short, kwargs, prefix='',
                          positional=False, deprecated_name=None):
@@ -605,7 +615,7 @@ class Opt(object):
         if short:
             args.append(hyphen('-') + short)
         if deprecated_name:
-            args.append(hyphen('--') + prefix + deprecated_name)
+            args.append(hyphen('--') + deprecated_name)
 
         try:
             container.add_argument(*args, **kwargs)
@@ -646,7 +656,7 @@ class Opt(object):
                        'help': self.help, })
         return kwargs
 
-    def _get_argparse_prefix(self, prefix, group):
+    def _get_argparse_prefix(self, prefix, group_name):
         """Build a prefix for the CLI option name, if required.
 
         CLI options in a group are prefixed with the group's name in order
@@ -654,13 +664,40 @@ class Opt(object):
         groups.
 
         :param prefix: an existing prefix to append to (e.g. 'no' or '')
-        :param group: an optional OptGroup object
+        :param group_name: an optional group name
         :returns: a CLI option prefix including the group name, if appropriate
         """
-        if group is not None:
-            return group.name + '-' + prefix
+        if group_name is not None:
+            return group_name + '-' + prefix
         else:
             return prefix
+
+    def _get_deprecated_cli_name(self, dname, dgroup, prefix=''):
+        """Build a CLi arg name for deprecated options.
+
+        Either a deprecated name or a deprecated group or both or
+        neither can be supplied:
+
+          dname, dgroup -> dgroup + '-' + dname
+          dname         -> dname
+          dgroup        -> dgroup + '-' + self.name
+          neither        -> None
+
+        :param dname: a deprecated name, which can be None
+        :param dgroup: a deprecated group, which can be None
+        :param prefix: an prefix to append to (e.g. 'no' or '')
+        :returns: a CLI argument name
+        """
+        if dgroup == 'DEFAULT':
+            dgroup = None
+
+        if dname is None and dgroup is None:
+            return None
+
+        if dname is None:
+            dname = self.name
+
+        return self._get_argparse_prefix(prefix, dgroup) + dname
 
 
 class StrOpt(Opt):
@@ -710,10 +747,13 @@ class BoolOpt(Opt):
         """Add the --nooptname option to the option parser."""
         container = self._get_argparse_container(parser, group)
         kwargs = self._get_argparse_kwargs(group, action='store_false')
-        prefix = self._get_argparse_prefix('no', group)
+        prefix = self._get_argparse_prefix('no', group.name if group else None)
+        deprecated_name = self._get_deprecated_cli_name(self.deprecated_name,
+                                                        self.deprecated_group,
+                                                        prefix='no')
         kwargs["help"] = "The inverse of --" + self.name
         self._add_to_argparse(container, self.name, None, kwargs, prefix,
-                              self.positional, self.deprecated_name)
+                              self.positional, deprecated_name)
 
     def _get_argparse_kwargs(self, group, action='store_true', **kwargs):
         """Extends the base argparse keyword dict for boolean options."""
@@ -810,10 +850,8 @@ class MultiStrOpt(Opt):
 
     def _cparser_get_with_deprecated(self, cparser, section):
         """If cannot find option as dest try deprecated_name alias."""
-        if self.deprecated_name is not None:
-            return cparser.get(section, [self.dest, self.deprecated_name],
-                               multi=True)
-        return cparser.get(section, [self.dest], multi=True)
+        supr = super(MultiStrOpt, self)
+        return supr._cparser_get_with_deprecated(cparser, section, multi=True)
 
 
 class SubCommandOpt(Opt):
@@ -999,12 +1037,12 @@ class MultiConfigParser(object):
 
         return read_ok
 
-    def get(self, section, names, multi=False):
+    def get(self, names, multi=False):
         rvalue = []
         for sections in self.parsed:
-            if section not in sections:
-                continue
-            for name in names:
+            for section, name in names:
+                if section not in sections:
+                    continue
                 if name in sections[section]:
                     if multi:
                         rvalue = sections[section][name] + rvalue
@@ -1136,7 +1174,8 @@ class ConfigOpts(collections.Mapping):
 
         self._setup(project, prog, version, usage, default_config_files)
 
-        self._cli_values = self._parse_cli_opts(args)
+        self._cli_values = self._parse_cli_opts(args if args is not None
+                                                else sys.argv[1:])
 
         self._parse_config_files()
 
