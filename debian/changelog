@@ -1,4 +1,4 @@
-oslo-config (2013.1~b4-1) experimental; urgency=low
+oslo-config (1.1.0b1-1) experimental; urgency=low
 
   * Initial release (Closes: #701523).
 

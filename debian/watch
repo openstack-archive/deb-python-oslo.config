@@ -1,2 +1,2 @@
 version=3
-https://github.com/openstack/oslo-incubator/tags .*/(\d[\d\.]+)\.tar\.gz
+https://github.com/openstack/oslo-config/tags .*/(\d[\d\.]+)\.tar\.gz

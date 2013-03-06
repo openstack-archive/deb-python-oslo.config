@@ -22,10 +22,11 @@ Vcs-Browser: http://anonscm.debian.org/gitweb/?p=openstack/oslo.git
 Vcs-Git: git://anonscm.debian.org/openstack/oslo.git
 Homepage: https://github.com/openstack/oslo-incubator
 
-Package: python-oslo-config
+Package: python-oslo.config
 Architecture: all
 Pre-Depends: dpkg (>= 1.15.6~)
-Depends: ${python:Depends}, ${misc:Depends}
+Depends: ${python:Depends}, ${misc:Depends},
+ python-argparse
 Description: Common code for Openstack Projects (configuration API)
  The OpenStack Oslo project provides Python libraries containing
  instructure code shared by OpenStack projects.
