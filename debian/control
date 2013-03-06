@@ -27,6 +27,7 @@ Architecture: all
 Pre-Depends: dpkg (>= 1.15.6~)
 Depends: ${python:Depends}, ${misc:Depends},
  python-argparse
+Provides: python-oslo-config
 Description: Common code for Openstack Projects (configuration API)
  The OpenStack Oslo project provides Python libraries containing
  instructure code shared by OpenStack projects.
