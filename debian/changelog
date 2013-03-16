@@ -1,3 +1,11 @@
+oslo-config (1:1.1.0-1) experimental; urgency=low
+
+  * New upstream release.
+  * Added new UPSTREAM_GIT in debian/rules, because upstream changed location
+    after renaming from oslo-config -> oslo.config.
+
+ -- Thomas Goirand <zigo@debian.org>  Sun, 17 Mar 2013 01:57:58 +0800
+
 oslo-config (1.1.0b1-1) experimental; urgency=low
 
   * Initial release (Closes: #701523).
