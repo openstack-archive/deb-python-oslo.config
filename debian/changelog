@@ -1,4 +1,4 @@
-oslo-config (1.1.0-1) unstable; urgency=low
+oslo-config (1:1.1.0-1) unstable; urgency=low
 
   * New upstream version.
   * Uploading to unstable.
