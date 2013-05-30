@@ -7,16 +7,19 @@ Uploaders: Loic Dachary (OuoU) <loic@debian.org>,
            Thomas Goirand <zigo@debian.org>,
            Ghe Rivero <ghe.rivero@stackops.com>,
            Mehdi Abaakouk <sileht@sileht.net>
-Build-Depends: debhelper (>= 9), python-setuptools, python-all (>= 2.6.6-3~), openstack-pkg-tools
+Build-Depends: debhelper (>= 9),
+               openstack-pkg-tools,
+               python-all (>= 2.6.6-3~),
+               python-setuptools
 Build-Depends-Indep: pep8 (>= 1.3.3),
- python-argparse,
- python-coverage,
- python-fixtures (>= 0.3.12),
- python-mox (>= 0.5.3),
- python-nose,
- python-nosexcover,
- python-testtools (>= 0.9.22),
- python-sphinx
+                     python-argparse,
+                     python-coverage,
+                     python-fixtures (>= 0.3.12),
+                     python-mox (>= 0.5.3),
+                     python-nose,
+                     python-nosexcover,
+                     python-sphinx,
+                     python-testtools (>= 0.9.22)
 Standards-Version: 3.9.4
 Vcs-Browser: http://anonscm.debian.org/gitweb/?p=openstack/oslo.git
 Vcs-Git: git://anonscm.debian.org/openstack/oslo.git
@@ -25,8 +28,7 @@ Homepage: https://github.com/openstack/oslo-incubator
 Package: python-oslo.config
 Architecture: all
 Pre-Depends: dpkg (>= 1.15.6~)
-Depends: ${python:Depends}, ${misc:Depends},
- python-argparse
+Depends: python-argparse, ${misc:Depends}, ${python:Depends}
 Provides: python-oslo-config
 Description: Common code for Openstack Projects (configuration API)
  The OpenStack Oslo project provides Python libraries containing
