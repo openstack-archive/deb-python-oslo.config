@@ -1,8 +1,9 @@
-oslo-config (1:1.1.0-2) UNRELEASED; urgency=low
+oslo-config (1:1.1.0-3) unstable; urgency=low
 
   * Ran wrap-and-sort.
+  * Drops python-nosexcover from build-dependencies.
 
- -- Thomas Goirand <zigo@debian.org>  Thu, 30 May 2013 11:30:21 +0800
+ -- Thomas Goirand <zigo@debian.org>  Fri, 12 Jul 2013 13:35:02 +0800
 
 oslo-config (1:1.1.0-1) unstable; urgency=low
 
