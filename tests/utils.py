@@ -1,6 +1,6 @@
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
 
-# Copyright 2010-2011 OpenStack, LLC
+# Copyright 2010-2011 OpenStack Foundation
 # Copyright 2010 United States Government as represented by the
 # Administrator of the National Aeronautics and Space Administration.
 # Copyright 2013 Hewlett-Packard Development Company, L.P.
@@ -20,31 +20,33 @@
 
 """Common utilities used in testing"""
 
+import os
+
 import fixtures
-import mox
-import stubout
 import testtools
 
-
-class MoxStubout(fixtures.Fixture):
-    """Deal with code around mox and stubout as a fixture."""
-
-    def setUp(self):
-        super(MoxStubout, self).setUp()
-        # emulate some of the mox stuff, we can't use the metaclass
-        # because it screws with our generators
-        self.mox = mox.Mox()
-        self.stubs = stubout.StubOutForTesting()
-        self.addCleanup(self.mox.UnsetStubs)
-        self.addCleanup(self.stubs.UnsetAll)
-        self.addCleanup(self.stubs.SmartUnsetAll)
-        self.addCleanup(self.mox.VerifyAll)
+TRUE_VALUES = ('true', '1', 'yes')
 
 
 class BaseTestCase(testtools.TestCase):
 
     def setUp(self):
         super(BaseTestCase, self).setUp()
-        self.stubs = self.useFixture(MoxStubout()).stubs
         self.useFixture(fixtures.FakeLogger('oslo.config'))
-        self.useFixture(fixtures.Timeout(30, True))
+        test_timeout = os.environ.get('OS_TEST_TIMEOUT', 30)
+        try:
+            test_timeout = int(test_timeout)
+        except ValueError:
+            # If timeout value is invalid, fail hard.
+            print("OS_TEST_TIMEOUT set to invalid value"
+                  " defaulting to no timeout")
+            test_timeout = 0
+        if test_timeout > 0:
+            self.useFixture(fixtures.Timeout(test_timeout, gentle=True))
+
+        if os.environ.get('OS_STDOUT_CAPTURE') in TRUE_VALUES:
+            stdout = self.useFixture(fixtures.StringStream('stdout')).stream
+            self.useFixture(fixtures.MonkeyPatch('sys.stdout', stdout))
+        if os.environ.get('OS_STDERR_CAPTURE') in TRUE_VALUES:
+            stderr = self.useFixture(fixtures.StringStream('stderr')).stream
+            self.useFixture(fixtures.MonkeyPatch('sys.stderr', stderr))
