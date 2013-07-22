@@ -1,6 +1,8 @@
 oslo-config (1:1.2.0a3-1) unstable; urgency=low
 
   * New upstream release.
+  * Added build-depends: python-pbr & testrepository and ixed the start of unit
+    tests using testrepository instead of nosetests.
 
  -- Thomas Goirand <zigo@debian.org>  Sat, 20 Jul 2013 15:16:46 +0800
 
