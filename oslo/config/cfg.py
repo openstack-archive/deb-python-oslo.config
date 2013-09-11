@@ -268,12 +268,13 @@ import glob
 import itertools
 import logging
 import os
-import six
 import string
 import sys
 
-from oslo.config import iniparser
+import six
 from six import moves
+
+from oslo.config import iniparser
 
 LOG = logging.getLogger(__name__)
 
@@ -286,6 +287,13 @@ class Error(Exception):
 
     def __str__(self):
         return self.msg
+
+
+class NotInitializedError(Error):
+    """Raised if parser is not initialized yet."""
+
+    def __str__(self):
+        return "call expression on parser has not been invoked"
 
 
 class ArgsAlreadyParsedError(Error):
@@ -363,7 +371,7 @@ class ConfigFilesNotFoundError(Error):
 
     def __str__(self):
         return ('Failed to read some config files: %s' %
-                string.join(self.config_files, ','))
+                ",".join(self.config_files))
 
 
 class ConfigFileParseError(Error):
@@ -708,6 +716,13 @@ class Opt(object):
 
         return self._get_argparse_prefix(prefix, dgroup) + dname
 
+    def __lt__(self, another):
+        return hash(self) < hash(another)
+
+# NOTE(jd) Not available for py2.6
+if six.PY3:
+    Opt = functools.total_ordering(Opt)
+
 
 class DeprecatedOpt(object):
 
@@ -732,8 +747,8 @@ class DeprecatedOpt(object):
     def __key(self):
         return (self.name, self.group)
 
-    def __eq__(x, y):
-        return x.__key() == y.__key()
+    def __eq__(self, other):
+        return self.__key() == other.__key()
 
     def __hash__(self):
         return hash(self.__key())
@@ -981,6 +996,9 @@ class SubCommandOpt(Opt):
                                            title=self.title,
                                            description=self.description,
                                            help=self.help)
+        # NOTE(jd) Set explicitely to True for Python 3
+        # See http://bugs.python.org/issue9253 for context
+        subparsers.required = True
 
         if self.handler is not None:
             self.handler(subparsers)
@@ -1601,9 +1619,12 @@ class ConfigOpts(collections.Mapping):
 
         :param name: the opt name (or 'dest', more precisely)
         :returns: the option value (after string subsititution) or a GroupAttr
-        :raises: NoSuchOptError,ConfigFileValueError,TemplateSubstitutionError
+        :raises: NoSuchOptError
         """
-        return self._get(name)
+        try:
+            return self._get(name)
+        except Exception:
+            raise NoSuchOptError(name)
 
     def __getitem__(self, key):
         """Look up an option value and perform string substitution."""
@@ -1635,7 +1656,7 @@ class ConfigOpts(collections.Mapping):
         removed as a side-effect of this method.
         """
         self._args = None
-        self._oparser = argparse.ArgumentParser()
+        self._oparser = None
         self._namespace = None
         self.unregister_opts(self._config_opts)
         for group in self._groups.values():
@@ -1909,11 +1930,31 @@ class ConfigOpts(collections.Mapping):
         logger.log(lvl, "*" * 80)
 
     def print_usage(self, file=None):
-        """Print the usage message for the current program."""
+        """Print the usage message for the current program.
+
+        This method is for use after all CLI options are known
+        registered using __call__() method. If this method is called
+        before the __call__() is invoked, it throws NotInitializedError
+
+        :param file: the File object (if None, output is on sys.stdout)
+        :raises: NotInitializedError
+        """
+        if not self._oparser:
+            raise NotInitializedError()
         self._oparser.print_usage(file)
 
     def print_help(self, file=None):
-        """Print the help message for the current program."""
+        """Print the help message for the current program.
+
+        This method is for use after all CLI options are known
+        registered using __call__() method. If this method is called
+        before the __call__() is invoked, it throws NotInitializedError
+
+        :param file: the File object (if None, output is on sys.stdout)
+        :raises: NotInitializedError
+        """
+        if not self._oparser:
+            raise NotInitializedError()
         self._oparser.print_help(file)
 
     def _get(self, name, group=None, namespace=None):
@@ -1997,6 +2038,10 @@ class ConfigOpts(collections.Mapping):
         objects, which will be a copy of any OptGroup object that users of
         the API have access to.
 
+        If autocreate is True, the group will be created if it's not found. If
+        group is an instance of OptGroup, that same instance will be
+        registered, otherwise a new instance of OptGroup will be created.
+
         :param group_or_name: the group's name or the OptGroup object itself
         :param autocreate: whether to auto-create the group if it's not found
         :raises: NoSuchGroupError
@@ -2005,10 +2050,10 @@ class ConfigOpts(collections.Mapping):
         group_name = group.name if group else group_or_name
 
         if group_name not in self._groups:
-            if group is not None or not autocreate:
+            if not autocreate:
                 raise NoSuchGroupError(group_name)
 
-            self.register_group(OptGroup(name=group_name))
+            self.register_group(group or OptGroup(name=group_name))
 
         return self._groups[group_name]
 

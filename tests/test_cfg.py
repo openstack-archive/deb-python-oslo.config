@@ -20,10 +20,11 @@ import sys
 import tempfile
 
 import fixtures
+import six
+from six import moves
 import testscenarios
 
 from oslo.config import cfg
-from six import moves
 from tests import utils
 
 load_tests = testscenarios.load_tests_apply_scenarios
@@ -1346,8 +1347,18 @@ class OptGroupsTestCase(BaseTestCase):
         self.assertTrue(hasattr(self.conf.blaa, 'foo'))
         self.assertEqual(self.conf.blaa.foo, 'bar')
 
-    def test_autocreate_group(self):
+    def test_autocreate_group_by_name(self):
         self.conf.register_cli_opt(cfg.StrOpt('foo'), group='blaa')
+
+        self.conf(['--blaa-foo', 'bar'])
+
+        self.assertTrue(hasattr(self.conf, 'blaa'))
+        self.assertTrue(hasattr(self.conf.blaa, 'foo'))
+        self.assertEqual(self.conf.blaa.foo, 'bar')
+
+    def test_autocreate_group_by_group(self):
+        group = cfg.OptGroup(name='blaa', title='Blaa options')
+        self.conf.register_cli_opt(cfg.StrOpt('foo'), group=group)
 
         self.conf(['--blaa-foo', 'bar'])
 
@@ -2155,7 +2166,9 @@ class SadPathTestCase(BaseTestCase):
     def test_unknown_attr(self):
         self.conf([])
         self.assertFalse(hasattr(self.conf, 'foo'))
-        self.assertRaises(cfg.NoSuchOptError, getattr, self.conf, 'foo')
+        self.assertRaises(AttributeError, getattr, self.conf, 'foo')
+        self.assertRaises(cfg.NoSuchOptError, self.conf._get, 'foo')
+        self.assertRaises(cfg.NoSuchOptError, self.conf.__getattr__, 'foo')
 
     def test_unknown_attr_is_attr_error(self):
         self.conf([])
@@ -2196,11 +2209,6 @@ class SadPathTestCase(BaseTestCase):
         self.conf.register_cli_opt(cfg.StrOpt('foo', short='f'))
         self.conf.register_cli_opt(cfg.StrOpt('bar', short='f'))
         self.assertRaises(cfg.DuplicateOptError, self.conf, [])
-
-    def test_no_such_group(self):
-        group = cfg.OptGroup('blaa')
-        self.assertRaises(cfg.NoSuchGroupError, self.conf.register_cli_opt,
-                          cfg.StrOpt('foo'), group=group)
 
     def test_already_parsed(self):
         self.conf([])
@@ -2257,7 +2265,8 @@ class SadPathTestCase(BaseTestCase):
 
         self.conf(['--config-file', paths[0]])
 
-        self.assertRaises(cfg.ConfigFileValueError, getattr, self.conf, 'foo')
+        self.assertRaises(AttributeError, getattr, self.conf, 'foo')
+        self.assertRaises(cfg.ConfigFileValueError, self.conf._get, 'foo')
 
     def test_conf_file_bad_bool(self):
         self._do_test_conf_file_bad_value(cfg.BoolOpt)
@@ -2277,7 +2286,9 @@ class SadPathTestCase(BaseTestCase):
 
         self.assertFalse(hasattr(self.conf, 'bar'))
         self.assertRaises(
-            cfg.TemplateSubstitutionError, getattr, self.conf, 'bar')
+            AttributeError, getattr, self.conf, 'bar')
+        self.assertRaises(
+            cfg.TemplateSubstitutionError, self.conf._get, 'bar')
 
     def test_set_default_unknown_attr(self):
         self.conf([])
@@ -2438,7 +2449,7 @@ class ConfigParserTestCase(BaseTestCase):
 
     def test_no_section(self):
         with tempfile.NamedTemporaryFile() as tmpfile:
-            tmpfile.write('foo = bar')
+            tmpfile.write(six.b('foo = bar'))
             tmpfile.flush()
 
             parser = cfg.ConfigParser(tmpfile.name, {})
@@ -2729,6 +2740,19 @@ class SetDefaultsTestCase(BaseTestCase):
         self.assertEqual(self.conf.blaa.foo, 'bar')
 
 
+class DeprecatedOptionsTestCase(BaseTestCase):
+
+    def test_deprecated_opts_equal(self):
+        d1 = cfg.DeprecatedOpt('oldfoo', group='oldgroup')
+        d2 = cfg.DeprecatedOpt('oldfoo', group='oldgroup')
+        self.assertEqual(d1, d2)
+
+    def test_deprecated_opts_not_equal(self):
+        d1 = cfg.DeprecatedOpt('oldfoo', group='oldgroup')
+        d2 = cfg.DeprecatedOpt('oldfoo2', group='oldgroup')
+        self.assertNotEqual(d1, d2)
+
+
 class MultipleDeprecatedOptionsTestCase(BaseTestCase):
 
     def test_conf_file_override_use_deprecated_name_and_group(self):
@@ -2812,7 +2836,8 @@ class ChoicesTestCase(BaseTestCase):
 
         self.conf(['--config-file', paths[0]])
 
-        self.assertRaises(cfg.ConfigFileValueError, getattr, self.conf, 'foo')
+        self.assertRaises(cfg.ConfigFileValueError, self.conf._get, 'foo')
+        self.assertRaises(AttributeError, getattr, self.conf, 'foo')
 
     def test_conf_file_choice_value_override(self):
         self.conf.register_cli_opt(cfg.StrOpt('foo',
@@ -2831,3 +2856,20 @@ class ChoicesTestCase(BaseTestCase):
 
         self.assertTrue(hasattr(self.conf, 'foo'))
         self.assertEqual(self.conf.foo, 'baaar')
+
+
+class PrintHelpTestCase(utils.BaseTestCase):
+
+    def test_print_help_without_init(self):
+        conf = cfg.ConfigOpts()
+        conf.register_opts([])
+        self.assertRaises(cfg.NotInitializedError,
+                          conf.print_help)
+
+    def test_print_help_with_clear(self):
+        conf = cfg.ConfigOpts()
+        conf.register_opts([])
+        conf([])
+        conf.clear()
+        self.assertRaises(cfg.NotInitializedError,
+                          conf.print_help)
