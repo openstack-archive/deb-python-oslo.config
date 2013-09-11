@@ -1,16 +1,11 @@
-oslo-config (1:1.2.0a3-2) UNRELEASED; urgency=low
-
-  * Fixed the VCS fields.
-
- -- Thomas Goirand <zigo@debian.org>  Sun, 01 Sep 2013 21:35:44 +0800
-
-oslo-config (1:1.2.0a3-1) unstable; urgency=low
+oslo-config (1:1.2.0a4-1) unstable; urgency=low
 
   * New upstream release.
+  * Fixed the VCS fields.
   * Added build-depends: python-pbr, python-six & testrepository and fixed the
     start of unit tests using testrepository instead of nosetests.
 
- -- Thomas Goirand <zigo@debian.org>  Sat, 20 Jul 2013 15:16:46 +0800
+ -- Thomas Goirand <zigo@debian.org>  Sun, 01 Sep 2013 21:35:44 +0800
 
 oslo-config (1:1.1.0-3) unstable; urgency=low
 
