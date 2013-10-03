@@ -14,6 +14,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import argparse
 import os
 import shutil
 import sys
@@ -1009,6 +1010,42 @@ class ConfigFileOptsTestCase(BaseTestCase):
 
         self.assertTrue(hasattr(self.conf, 'foo'))
         self.assertEqual(self.conf.foo, {'key': 'bar'})
+
+    def test_conf_file_dict_colon_in_value(self):
+        self.conf.register_opt(cfg.DictOpt('foo'))
+
+        paths = self.create_tempfiles([('test',
+                                        '[DEFAULT]\n'
+                                        'foo = key:bar:baz\n')])
+
+        self.conf(['--config-file', paths[0]])
+
+        self.assertTrue(hasattr(self.conf, 'foo'))
+        self.assertEqual(self.conf.foo, {'key': 'bar:baz'})
+
+    def test_conf_file_dict_value_no_colon(self):
+        self.conf.register_opt(cfg.DictOpt('foo'))
+
+        paths = self.create_tempfiles([('test',
+                                        '[DEFAULT]\n'
+                                        'foo = key:bar,baz\n')])
+
+        self.conf(['--config-file', paths[0]])
+
+        self.assertRaises(cfg.ConfigFileValueError, self.conf._get, 'foo')
+        self.assertRaises(AttributeError, getattr, self.conf, 'foo')
+
+    def test_conf_file_dict_value_duplicate_key(self):
+        self.conf.register_opt(cfg.DictOpt('foo'))
+
+        paths = self.create_tempfiles([('test',
+                                        '[DEFAULT]\n'
+                                        'foo = key:bar,key:baz\n')])
+
+        self.conf(['--config-file', paths[0]])
+
+        self.assertRaises(cfg.ConfigFileValueError, self.conf._get, 'foo')
+        self.assertRaises(AttributeError, getattr, self.conf, 'foo')
 
     def test_conf_file_dict_values_override_deprecated(self):
         self.conf.register_cli_opt(cfg.DictOpt('foo',
@@ -2581,6 +2618,21 @@ class SubCommandTestCase(BaseTestCase):
         def add_parsers(subparsers):
             sub = subparsers.add_parser('a')
             sub.add_argument('bar', type=int)
+
+        self.conf.register_cli_opt(
+            cfg.SubCommandOpt('cmd', handler=add_parsers))
+        self.assertTrue(hasattr(self.conf, 'cmd'))
+        self.conf(['a', '10'])
+        self.assertTrue(hasattr(self.conf.cmd, 'name'))
+        self.assertTrue(hasattr(self.conf.cmd, 'bar'))
+        self.assertEqual(self.conf.cmd.name, 'a')
+        self.assertEqual(self.conf.cmd.bar, 10)
+
+    def test_sub_command_with_parent(self):
+        def add_parsers(subparsers):
+            parent = argparse.ArgumentParser(add_help=False)
+            parent.add_argument('bar', type=int)
+            subparsers.add_parser('a', parents=[parent])
 
         self.conf.register_cli_opt(
             cfg.SubCommandOpt('cmd', handler=add_parsers))

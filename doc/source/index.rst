@@ -20,6 +20,31 @@ Contents
 Release Notes
 =============
 
+1.2.0
+-----
+
+* 1223667_: Fix DictOpt to split only the first colon
+* 1228995_: Disallow duplicate keys in DictOpt
+* Explicit version removed from setup.cfg
+* Dependency version updates
+
+.. _1223667: https://bugs.launchpad.net/oslo/+bug/1223667
+.. _1228995: https://bugs.launchpad.net/oslo/+bug/1228995
+
+1.2.0a4
+-------
+
+* Add auto-create support for OptGroup instances (see review 41865_)
+* Publish full API docs to docs.openstack.org_
+* Finished Python 3 support
+* 1196601_: Raise an exception if print_help() is called before __call__
+* Fix DeprecatedOpt equality test
+* Use oslo.sphinx
+
+.. _41865: https://review.openstack.org/41865
+.. _1196601: https://bugs.launchpad.net/oslo/+bug/1196601
+.. _docs.openstack.org:  http://docs.openstack.org/developer/oslo.config/
+
 1.2.0a3
 -------
 

@@ -733,6 +733,13 @@ class DeprecatedOpt(object):
         cfg.CONF.register_group(cfg.OptGroup('blaa'))
         cfg.CONF.register_opt(cfg.StrOpt('foo', deprecated_opts=oldopts),
                                group='blaa')
+
+        Multi-value options will return all new and deprecated
+        options.  For single options, if the new option is present
+        ("[blaa]/foo" above) it will override any deprecated options
+        present.  If the new option is not present and multiple
+        deprecated options are present, the option corresponding to
+        the first element of deprecated_opts will be chosen.
     """
 
     def __init__(self, name, group=None):
@@ -911,9 +918,23 @@ class DictOpt(Opt):
         Split a value into key/value pairs separated by commas, then split
         the each into key and value using colons as separator and then
         stuff the key/value (s) into a dictionary
+
+        :param value: the string value of key/value pairs separated by commas
+        :returns: a dict object
+        :raises: ConfigFileValueError
         """
-        return dict([[a.strip() for a in v.split(':')]
-                    for v in value.split(',')])
+        res = dict()
+        for v in [a for a in value.split(',')]:
+            try:
+                key, val = [a.strip() for a in v.split(':', 1)]
+            except ValueError:
+                raise ConfigFileValueError("Failed to parse '%s' as a colon "
+                                           "separated key/value pair" % v)
+            if key in res:
+                raise ConfigFileValueError("Duplicate key error. Key: '%s'" %
+                                           key)
+            res[key] = val
+        return res
 
     class _StoreDictAction(argparse.Action):
         """An argparse action for parsing an option value into a dictionary."""
@@ -1448,8 +1469,8 @@ class _CachedArgumentParser(argparse.ArgumentParser):
     order.
     """
 
-    def __init__(self, prog=None, usage=None):
-        super(_CachedArgumentParser, self).__init__(prog, usage)
+    def __init__(self, prog=None, usage=None, **kwargs):
+        super(_CachedArgumentParser, self).__init__(prog, usage, **kwargs)
         self._args_cache = {}
 
     def add_parser_argument(self, container, *args, **kwargs):
