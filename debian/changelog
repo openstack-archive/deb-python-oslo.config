@@ -1,5 +1,6 @@
-oslo-config (1:1.2.0a4-3) UNRELEASED; urgency=low
+oslo-config (1:1.2.1-1) UNRELEASED; urgency=low
 
+  * New upstream release.
   * Added --testr-args='--subunit  ' when calling testr.
 
  -- Thomas Goirand <zigo@debian.org>  Tue, 01 Oct 2013 15:15:29 +0800
