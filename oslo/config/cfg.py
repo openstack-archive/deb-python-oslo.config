@@ -1,5 +1,3 @@
-# vim: tabstop=4 shiftwidth=4 softtabstop=4
-
 # Copyright 2012 Red Hat, Inc.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -17,25 +15,37 @@
 r"""
 Configuration options which may be set on the command line or in config files.
 
-The schema for each option is defined using the Opt sub-classes, e.g.:
+The schema for each option is defined using the Opt class or its sub-classes,
+e.g.:
 
 ::
+
+    from oslo.config import cfg
+    from oslo.config import types
+
+    PortType = types.Integer(1, 65535)
 
     common_opts = [
         cfg.StrOpt('bind_host',
                    default='0.0.0.0',
-                   help='IP address to listen on'),
-        cfg.IntOpt('bind_port',
-                   default=9292,
-                   help='Port number to listen on')
+                   help='IP address to listen on.'),
+        cfg.Opt('bind_port',
+                type=PortType(),
+                default=9292,
+                help='Port number to listen on.')
     ]
 
-Options can be strings, integers, floats, booleans, lists, or 'multi strings'
-or 'key/value pairs' (dictionary) ::
+Options can have arbitrary types, you just need to pass type constructor
+to Opt. Type constructor is a callable object that takes a string and returns
+value of particular type or raises ValueError if given string can't be
+converted to that type.
+
+There are predefined types: strings, integers, floats, booleans, lists,
+'multi strings' and 'key/value pairs' (dictionary) ::
 
     enabled_apis_opt = cfg.ListOpt('enabled_apis',
                                    default=['ec2', 'osapi_compute'],
-                                   help='List of APIs to enable by default')
+                                   help='List of APIs to enable by default.')
 
     DEFAULT_EXTENSIONS = [
         'nova.api.openstack.compute.contrib.standard_extensions'
@@ -81,11 +91,11 @@ must be registered with the config manager before the command line is parsed
         cfg.BoolOpt('verbose',
                     short='v',
                     default=False,
-                    help='Print more verbose output'),
+                    help='Print more verbose output.'),
         cfg.BoolOpt('debug',
                     short='d',
                     default=False,
-                    help='Print debugging output'),
+                    help='Print debugging output.'),
     ]
 
     def add_common_opts(conf):
@@ -119,9 +129,9 @@ e.g. glance-api.conf and glance-common.conf::
       [DEFAULT]
       bind_host = 0.0.0.0
 
-Option values in config files override those on the command line. Config files
-are parsed in order, with values in later files overriding those in earlier
-files.
+Option values in config files and those on the command line are parsed
+in order. The same option can appear many times, in config files or on
+the command line. Later values always override earlier ones.
 
 The parsing of CLI args and config files is initiated by invoking the config
 manager e.g.::
@@ -139,10 +149,10 @@ Options can be registered as belonging to a group::
 
     rabbit_host_opt = cfg.StrOpt('host',
                                  default='localhost',
-                                 help='IP/hostname to listen on'),
+                                 help='IP/hostname to listen on.'),
     rabbit_port_opt = cfg.IntOpt('port',
                                  default=5672,
-                                 help='Port number to listen on')
+                                 help='Port number to listen on.')
 
     def register_rabbit_opts(conf):
         conf.register_group(rabbit_group)
@@ -195,13 +205,13 @@ Option values may reference other values using PEP 292 string substitution::
     opts = [
         cfg.StrOpt('state_path',
                    default=os.path.join(os.path.dirname(__file__), '../'),
-                   help='Top-level directory for maintaining nova state'),
+                   help='Top-level directory for maintaining nova state.'),
         cfg.StrOpt('sqlite_db',
                    default='nova.sqlite',
-                   help='file name for sqlite'),
+                   help='File name for SQLite.'),
         cfg.StrOpt('sql_connection',
                    default='sqlite:///$state_path/$sqlite_db',
-                   help='connection string for sql database'),
+                   help='Connection string for SQL database.'),
     ]
 
 Note that interpolation can be avoided by using '$$'.
@@ -263,6 +273,7 @@ command line arguments using the SubCommandOpt class:
 import argparse
 import collections
 import copy
+import errno
 import functools
 import glob
 import itertools
@@ -275,6 +286,7 @@ import six
 from six import moves
 
 from oslo.config import iniparser
+from oslo.config import types
 
 LOG = logging.getLogger(__name__)
 
@@ -372,6 +384,16 @@ class ConfigFilesNotFoundError(Error):
     def __str__(self):
         return ('Failed to read some config files: %s' %
                 ",".join(self.config_files))
+
+
+class ConfigDirNotFoundError(Error):
+    """Raised if the requested config-dir is not found."""
+
+    def __init__(self, config_dir):
+        self.config_dir = config_dir
+
+    def __str__(self):
+        return ('Failed to read config file directory: %s' % self.config_dir)
 
 
 class ConfigFileParseError(Error):
@@ -518,6 +540,9 @@ class Opt(object):
 
       name:
         the name of the option, which may include hyphens
+      type:
+        a callable object that takes string and returns
+        converted and validated value
       dest:
         the (hyphen-less) ConfigOpts property which contains the option value
       short:
@@ -532,10 +557,9 @@ class Opt(object):
         an string explaining how the options value is used
     """
     multi = False
-    _convert_value = None
 
-    def __init__(self, name, dest=None, short=None, default=None,
-                 positional=False, metavar=None, help=None,
+    def __init__(self, name, type=None, dest=None, short=None,
+                 default=None, positional=False, metavar=None, help=None,
                  secret=False, required=False,
                  deprecated_name=None, deprecated_group=None,
                  deprecated_opts=None):
@@ -545,6 +569,8 @@ class Opt(object):
         common to also supply a default and help string for all options.
 
         :param name: the option's name
+        :param type: the option's type. Must be a callable object that
+                     takes string and returns converted and validated value
         :param dest: the name of the corresponding ConfigOpts property
         :param short: a single character CLI option name
         :param default: the default value of the option
@@ -558,6 +584,14 @@ class Opt(object):
         :param deprecated_opts: array of DeprecatedOpt(s)
         """
         self.name = name
+
+        if type is None:
+            type = types.String()
+
+        if not callable(type):
+            raise TypeError('type must be callable')
+        self.type = type
+
         if dest is None:
             self.dest = self.name.replace('-', '_')
         else:
@@ -579,6 +613,11 @@ class Opt(object):
     def __ne__(self, another):
         return vars(self) != vars(another)
 
+    def __eq__(self, another):
+        return vars(self) == vars(another)
+
+    __hash__ = object.__hash__
+
     def _get_from_namespace(self, namespace, group_name):
         """Retrieves the option value from a _Namespace object.
 
@@ -593,9 +632,7 @@ class Opt(object):
                 names.append((dgroup if dgroup else group_name,
                               dname if dname else self.dest))
 
-        return namespace._get_value(names,
-                                    self.multi, self.positional,
-                                    self._convert_value)
+        return namespace._get_value(names, self.multi, self.positional)
 
     def _add_to_cli(self, parser, group=None):
         """Makes the option available in the command line interface.
@@ -726,20 +763,23 @@ if six.PY3:
 
 class DeprecatedOpt(object):
 
-    """Represents a Deprecated option. Here's how you can use it
+    """Represents a Deprecated option.
+
+    Here's how you can use it::
 
         oldopts = [cfg.DeprecatedOpt('oldfoo', group='oldgroup'),
                    cfg.DeprecatedOpt('oldfoo2', group='oldgroup2')]
         cfg.CONF.register_group(cfg.OptGroup('blaa'))
         cfg.CONF.register_opt(cfg.StrOpt('foo', deprecated_opts=oldopts),
-                               group='blaa')
+                              group='blaa')
 
-        Multi-value options will return all new and deprecated
-        options.  For single options, if the new option is present
-        ("[blaa]/foo" above) it will override any deprecated options
-        present.  If the new option is not present and multiple
-        deprecated options are present, the option corresponding to
-        the first element of deprecated_opts will be chosen.
+    Multi-value options will return all new and deprecated
+    options.  For single options, if the new option is present
+    ("[blaa]/foo" above) it will override any deprecated options
+    present.  If the new option is not present and multiple
+    deprecated options are present, the option corresponding to
+    the first element of deprecated_opts will be chosen.
+
     """
 
     def __init__(self, name, group=None):
@@ -762,34 +802,15 @@ class DeprecatedOpt(object):
 
 
 class StrOpt(Opt):
-    """String options.
-
-    String opts do not have their values transformed and are returned as
-    str objects.
-
-    In addition to the parameters in the base class Opt, StrOpt has an
-    additional parameter.
+    """Option with String type (for backward compatibility).
 
     :param choices: Optional sequence of valid values.
     """
 
     def __init__(self, name, choices=None, **kwargs):
-        self.choices = choices
-        super(StrOpt, self).__init__(name, **kwargs)
-
-    def _get_argparse_kwargs(self, group, **kwargs):
-        """Extends the base argparse keyword dict for choices handling."""
-        return super(StrOpt, self)._get_argparse_kwargs(group,
-                                                        choices=self.choices,
-                                                        **kwargs)
-
-    def _convert_value(self, value):
-        """Validate a value, no actual conversion required."""
-        if self.choices and value not in self.choices:
-            message = ('Invalid value: %r (choose from %s)' %
-                       (value, ', '.join(map(repr, self.choices))))
-            raise ValueError(message)
-        return value
+        super(StrOpt, self).__init__(name,
+                                     type=types.String(choices=choices),
+                                     **kwargs)
 
 
 class BoolOpt(Opt):
@@ -799,25 +820,13 @@ class BoolOpt(Opt):
     Bool opts are set to True or False on the command line using --optname or
     --noopttname respectively.
 
-    In config files, boolean values are case insensitive and can be set using
-    1/0, yes/no, true/false or on/off.
+    In config files, boolean values are cast with Boolean type.
     """
 
-    _boolean_states = {'1': True, 'yes': True, 'true': True, 'on': True,
-                       '0': False, 'no': False, 'false': False, 'off': False}
-
-    def __init__(self, *args, **kwargs):
+    def __init__(self, name, **kwargs):
         if 'positional' in kwargs:
             raise ValueError('positional boolean args not supported')
-        super(BoolOpt, self).__init__(*args, **kwargs)
-
-    @staticmethod
-    def _convert_value(value):
-        """Convert a string value to a bool."""
-        ret = BoolOpt._boolean_states.get(value.lower())
-        if ret is None:
-            raise ValueError('Unexpected boolean value %r' % value)
-        return ret
+        super(BoolOpt, self).__init__(name, type=types.Boolean(), **kwargs)
 
     def _add_to_cli(self, parser, group=None):
         """Extends the base class method to add the --nooptname option."""
@@ -841,6 +850,10 @@ class BoolOpt(Opt):
         """Extends the base argparse keyword dict for boolean options."""
 
         kwargs = super(BoolOpt, self)._get_argparse_kwargs(group, **kwargs)
+        # type has no effect for BoolOpt, it only matters for
+        # values that came from config files
+        if 'type' in kwargs:
+            del kwargs['type']
 
         # metavar has no effect for BoolOpt
         if 'metavar' in kwargs:
@@ -853,121 +866,66 @@ class BoolOpt(Opt):
 
 class IntOpt(Opt):
 
-    """Int opt values are converted to integers using the int() builtin."""
+    """Opt with Integer type (for backward compatibility)."""
 
-    _convert_value = int
-
-    def _get_argparse_kwargs(self, group, **kwargs):
-        """Extends the base argparse keyword dict for integer options."""
-        return super(IntOpt,
-                     self)._get_argparse_kwargs(group, type=int, **kwargs)
+    def __init__(self, name, **kwargs):
+        super(IntOpt, self).__init__(name, type=types.Integer(), **kwargs)
 
 
 class FloatOpt(Opt):
 
-    """Float opt values are converted to floats using the float() builtin."""
+    """Opt with Float type (for backward compatibility)."""
 
-    _convert_value = float
-
-    def _get_argparse_kwargs(self, group, **kwargs):
-        """Extends the base argparse keyword dict for float options."""
-        return super(FloatOpt, self)._get_argparse_kwargs(group,
-                                                          type=float, **kwargs)
+    def __init__(self, name, **kwargs):
+        super(FloatOpt, self).__init__(name, type=types.Float(), **kwargs)
 
 
 class ListOpt(Opt):
 
-    """List Options.
+    """Opt with List(String) type (for backward compatibility)."""
 
-    List opt values are simple string values separated by commas. The opt value
-    is a list containing these strings.
-    """
-
-    @staticmethod
-    def _convert_value(value):
-        """Convert a string value to a list."""
-        return [a.strip() for a in value.split(',')]
-
-    class _StoreListAction(argparse.Action):
-        """An argparse action for parsing an option value into a list."""
-        def __call__(self, parser, namespace, values, option_string=None):
-            if values is not None:
-                values = ListOpt._convert_value(values)
-            setattr(namespace, self.dest, values)
-
-    def _get_argparse_kwargs(self, group, **kwargs):
-        """Extends the base argparse keyword dict for list options."""
-        return Opt._get_argparse_kwargs(self,
-                                        group,
-                                        action=ListOpt._StoreListAction,
-                                        **kwargs)
+    def __init__(self, name, **kwargs):
+        super(ListOpt, self).__init__(name, type=types.List(), **kwargs)
 
 
 class DictOpt(Opt):
 
-    """Dictionary options.
+    """Opt with Dict(String) type (for backward compatibility)."""
 
-    Dictionary opt values are key:value pairs separated by commas. The opt
-    value is a dictionary of these key/value pairs
-    """
-
-    @staticmethod
-    def _convert_value(value):
-        """Split a line.
-
-        Split a value into key/value pairs separated by commas, then split
-        the each into key and value using colons as separator and then
-        stuff the key/value (s) into a dictionary
-
-        :param value: the string value of key/value pairs separated by commas
-        :returns: a dict object
-        :raises: ConfigFileValueError
-        """
-        res = dict()
-        for v in [a for a in value.split(',')]:
-            try:
-                key, val = [a.strip() for a in v.split(':', 1)]
-            except ValueError:
-                raise ConfigFileValueError("Failed to parse '%s' as a colon "
-                                           "separated key/value pair" % v)
-            if key in res:
-                raise ConfigFileValueError("Duplicate key error. Key: '%s'" %
-                                           key)
-            res[key] = val
-        return res
-
-    class _StoreDictAction(argparse.Action):
-        """An argparse action for parsing an option value into a dictionary."""
-        def __call__(self, parser, namespace, values, option_string=None):
-            if values is not None:
-                values = DictOpt._convert_value(values)
-            setattr(namespace, self.dest, values)
-
-    def _get_argparse_kwargs(self, group, **kwargs):
-        """Extends the base argparse keyword dict for dictionary options."""
-        return Opt._get_argparse_kwargs(self,
-                                        group,
-                                        action=DictOpt._StoreDictAction,
-                                        **kwargs)
+    def __init__(self, name, **kwargs):
+        super(DictOpt, self).__init__(name, type=types.Dict(), **kwargs)
 
 
-class MultiStrOpt(Opt):
+class MultiOpt(Opt):
 
-    """Multi-string option.
+    """Multi-value option.
 
-    Multistr opt values are string opts which may be specified multiple times.
-    The opt value is a list containing all the string values specified.
+    Multi opt values are typed opts which may be specified multiple times.
+    The opt value is a list containing all the values specified.
     """
     multi = True
 
+    def __init__(self, name, item_type, **kwargs):
+        super(MultiOpt, self).__init__(name, item_type, **kwargs)
+
     def _get_argparse_kwargs(self, group, **kwargs):
-        """Extends the base argparse keyword dict for multi str options."""
-        kwargs = super(MultiStrOpt, self)._get_argparse_kwargs(group)
+        """Extends the base argparse keyword dict for multi value options."""
+        kwargs = super(MultiOpt, self)._get_argparse_kwargs(group)
         if not self.positional:
             kwargs['action'] = 'append'
         else:
             kwargs['nargs'] = '*'
         return kwargs
+
+
+class MultiStrOpt(MultiOpt):
+
+    """Multi opt with String item type (for backward compatibility)."""
+
+    def __init__(self, name, **kwargs):
+        super(MultiStrOpt, self).__init__(name,
+                                          item_type=types.String(),
+                                          **kwargs)
 
 
 class SubCommandOpt(Opt):
@@ -977,7 +935,7 @@ class SubCommandOpt(Opt):
     Sub-command options allow argparse sub-parsers to be used to parse
     additional command line arguments.
 
-    The handler argument to the SubCommandOpt contructor is a callable
+    The handler argument to the SubCommandOpt constructor is a callable
     which is supplied an argparse subparsers object. Use this handler
     callable to add sub-parsers.
 
@@ -1002,7 +960,8 @@ class SubCommandOpt(Opt):
         :param description: description of the group in help output
         :param help: a help string giving an overview of available sub-commands
         """
-        super(SubCommandOpt, self).__init__(name, dest=dest, help=help)
+        super(SubCommandOpt, self).__init__(name, type=types.String(),
+                                            dest=dest, help=help)
         self.handler = handler
         self.title = title
         self.description = description
@@ -1017,7 +976,7 @@ class SubCommandOpt(Opt):
                                            title=self.title,
                                            description=self.description,
                                            help=self.help)
-        # NOTE(jd) Set explicitely to True for Python 3
+        # NOTE(jd) Set explicitly to True for Python 3
         # See http://bugs.python.org/issue9253 for context
         subparsers.required = True
 
@@ -1061,6 +1020,9 @@ class _ConfigFileOpt(Opt):
 
             ConfigParser._parse_file(values, namespace)
 
+    def __init__(self, name, **kwargs):
+        super(_ConfigFileOpt, self).__init__(name, lambda x: x, **kwargs)
+
     def _get_argparse_kwargs(self, group, **kwargs):
         """Extends the base argparse keyword dict for the config file opt."""
         kwargs = super(_ConfigFileOpt, self)._get_argparse_kwargs(group)
@@ -1095,14 +1057,24 @@ class _ConfigDirOpt(Opt):
         def __call__(self, parser, namespace, values, option_string=None):
             """Handle a --config-dir command line argument.
 
-            :raises: ConfigFileParseError, ConfigFileValueError
+            :raises: ConfigFileParseError, ConfigFileValueError,
+                     ConfigDirNotFoundError
             """
             setattr(namespace, self.dest, values)
+
+            values = os.path.expanduser(values)
+
+            if not os.path.exists(values):
+                raise ConfigDirNotFoundError(values)
 
             config_dir_glob = os.path.join(values, '*.conf')
 
             for config_file in sorted(glob.glob(config_dir_glob)):
                 ConfigParser._parse_file(config_file, namespace)
+
+    def __init__(self, name, **kwargs):
+        super(_ConfigDirOpt, self).__init__(name, type=types.String(),
+                                            **kwargs)
 
     def _get_argparse_kwargs(self, group, **kwargs):
         """Extends the base argparse keyword dict for the config dir option."""
@@ -1250,9 +1222,11 @@ class ConfigParser(iniparser.BaseParser):
             parser.parse()
         except iniparser.ParseError as pe:
             raise ConfigFileParseError(pe.filename, str(pe))
-        except IOError:
-            namespace._file_not_found(config_file)
-            return
+        except IOError as err:
+            if err.errno in (errno.ENOENT, errno.EACCES):
+                namespace._file_not_found(config_file)
+                return
+            raise
 
         namespace.add_parsed_config_file(sections, normalized)
 
@@ -1293,21 +1267,17 @@ class MultiConfigParser(object):
     def get(self, names, multi=False):
         return self._get(names, multi=multi)
 
-    def _get(self, names, multi=False, normalized=False, convert_value=None):
+    def _get(self, names, multi=False, normalized=False):
         """Fetch a config file value from the parsed files.
 
         :param names: a list of (section, name) tuples
         :param multi: a boolean indicating whether to return multiple values
         :param normalized: whether to normalize group names to lowercase
-        :param convert_value: callable to convert a string into the proper type
         """
         rvalue = []
 
         def normalize(name):
             return _normalize_group_name(name) if normalized else name
-
-        def convert(value):
-            return value if convert_value is None else convert_value(value)
 
         names = [(normalize(section), name) for section, name in names]
 
@@ -1316,7 +1286,7 @@ class MultiConfigParser(object):
                 if section not in sections:
                     continue
                 if name in sections[section]:
-                    val = [convert(v) for v in sections[section][name]]
+                    val = sections[section][name]
                     if multi:
                         rvalue = val + rvalue
                     else:
@@ -1420,7 +1390,6 @@ class _Namespace(argparse.Namespace):
 
         :param names: a list of (section, name) tuples
         :param multi: a boolean indicating whether to return multiple values
-        :param convert_value: callable to convert a string into the proper type
         """
         for group_name, name in names:
             name = name if group_name is None else group_name + '_' + name
@@ -1435,7 +1404,7 @@ class _Namespace(argparse.Namespace):
                 pass
         raise KeyError
 
-    def _get_value(self, names, multi, positional, convert_value):
+    def _get_value(self, names, multi, positional):
         """Fetch a value from config files.
 
         Multiple names for a given configuration option may be supplied so
@@ -1445,7 +1414,6 @@ class _Namespace(argparse.Namespace):
         :param names: a list of (section, name) tuples
         :param multi: a boolean indicating whether to return multiple values
         :param positional: whether this is a positional option
-        :param convert_value: callable to convert a string into the proper type
         """
         try:
             return self._get_cli_value(names, positional)
@@ -1453,8 +1421,7 @@ class _Namespace(argparse.Namespace):
             pass
 
         names = [(g if g is not None else 'DEFAULT', n) for g, n in names]
-        values = self.parser._get(names, multi=multi, normalized=True,
-                                  convert_value=convert_value)
+        values = self.parser._get(names, multi=multi, normalized=True)
         return values if multi else values[-1]
 
 
@@ -1462,7 +1429,7 @@ class _CachedArgumentParser(argparse.ArgumentParser):
 
     """class for caching/collecting command line arguments.
 
-    It also sorts the arguments before intializing the ArgumentParser.
+    It also sorts the arguments before initializing the ArgumentParser.
     We need to do this since ArgumentParser by default does not sort
     the argument options and the only way to influence the order of
     arguments in '--help' is to ensure they are added in the sorted
@@ -1524,6 +1491,7 @@ class ConfigOpts(collections.Mapping):
         self._namespace = None
         self.__cache = {}
         self._config_opts = []
+        self._validate_default_values = False
 
     def _pre_setup(self, project, prog, version, usage, default_config_files):
         """Initialize a ConfigCliParser object for option parsing."""
@@ -1552,7 +1520,7 @@ class ConfigOpts(collections.Mapping):
                            help=('Path to a config file to use. Multiple '
                                  'config files can be specified, with values '
                                  'in later files taking precedence. The '
-                                 'default files used are: %(default)s')),
+                                 'default files used are: %(default)s.')),
             _ConfigDirOpt('config-dir',
                           metavar='DIR',
                           help='Path to a config directory to pull *.conf '
@@ -1590,7 +1558,8 @@ class ConfigOpts(collections.Mapping):
                  prog=None,
                  version=None,
                  usage=None,
-                 default_config_files=None):
+                 default_config_files=None,
+                 validate_default_values=False):
         """Parse command line arguments and config files.
 
         Calling a ConfigOpts object causes the supplied command line arguments
@@ -1613,12 +1582,14 @@ class ConfigOpts(collections.Mapping):
         :param version: the program version (for --version)
         :param usage: a usage string (%prog will be expanded)
         :param default_config_files: config files to use by default
+        :param validate_default_values: whether to validate the default values
         :returns: the list of arguments left over after parsing options
         :raises: SystemExit, ConfigFilesNotFoundError, ConfigFileParseError,
                  RequiredOptError, DuplicateOptError
         """
-
         self.clear()
+
+        self._validate_default_values = validate_default_values
 
         prog, default_config_files = self._pre_setup(project,
                                                      prog,
@@ -1639,7 +1610,7 @@ class ConfigOpts(collections.Mapping):
         """Look up an option value and perform string substitution.
 
         :param name: the opt name (or 'dest', more precisely)
-        :returns: the option value (after string subsititution) or a GroupAttr
+        :returns: the option value (after string substitution) or a GroupAttr
         :raises: NoSuchOptError
         """
         try:
@@ -1679,6 +1650,7 @@ class ConfigOpts(collections.Mapping):
         self._args = None
         self._oparser = None
         self._namespace = None
+        self._validate_default_values = False
         self.unregister_opts(self._config_opts)
         for group in self._groups.values():
             group._clear()
@@ -1989,7 +1961,7 @@ class ConfigOpts(collections.Mapping):
 
             return self.__cache[key]
         except KeyError:
-            value = self._substitute(self._do_get(name, group, namespace))
+            value = self._do_get(name, group, namespace)
             self.__cache[key] = value
             return value
 
@@ -2014,40 +1986,79 @@ class ConfigOpts(collections.Mapping):
             return self.SubCommandAttr(self, group, opt.dest)
 
         if 'override' in info:
-            return info['override']
+            return self._substitute(info['override'])
 
         if namespace is None:
             namespace = self._namespace
+
+        def convert(value):
+            return self._convert_value(self._substitute(value, namespace), opt)
+
         if namespace is not None:
-            group_name = group.name if group is not None else None
+            group_name = group.name if group else None
             try:
-                return opt._get_from_namespace(namespace, group_name)
+                return convert(opt._get_from_namespace(namespace, group_name))
             except KeyError:
                 pass
             except ValueError as ve:
                 raise ConfigFileValueError(str(ve))
 
         if 'default' in info:
-            return info['default']
+            return self._substitute(info['default'])
 
-        return opt.default
+        if self._validate_default_values:
+            if opt.default is not None:
+                try:
+                    convert(opt.default)
+                except ValueError as e:
+                    raise ConfigFileValueError(
+                        "Default value for option %s is not valid: %s"
+                        % (opt.name, str(e)))
 
-    def _substitute(self, value):
+        if opt.default is not None:
+            return convert(opt.default)
+
+        return None
+
+    def _substitute(self, value, namespace=None):
         """Perform string template substitution.
 
         Substitute any template variables (e.g. $foo, ${bar}) in the supplied
         string value(s) with opt values.
 
         :param value: the string value, or list of string values
+        :param namespace: the namespace object that retrieves the option
+                          value from
         :returns: the substituted string(s)
         """
         if isinstance(value, list):
-            return [self._substitute(i) for i in value]
+            return [self._substitute(i, namespace=namespace) for i in value]
         elif isinstance(value, str):
+            # Treat a backslash followed by the dollar sign "\$"
+            # the same as the string template escape "$$" as it is
+            # a bit more natural for users
+            if '\$' in value:
+                value = value.replace('\$', '$$')
             tmpl = string.Template(value)
-            return tmpl.safe_substitute(self.StrSubWrapper(self))
+            return tmpl.safe_substitute(
+                self.StrSubWrapper(self, namespace=namespace))
         else:
             return value
+
+    def _convert_value(self, value, opt):
+        """Perform value type conversion.
+
+        Converts values using option's type. Handles cases when value is
+        actually a list of values (e.g. for multi opts).
+
+        :param value: the string value, or list of string values
+        :param opt: option definition (instance of Opt class or its subclasses)
+        :returns: converted value
+        """
+        if opt.multi:
+            return [opt.type(v) for v in value]
+        else:
+            return opt.type(value)
 
     def _get_group(self, group_or_name, autocreate=False):
         """Looks up a OptGroup object.
@@ -2145,7 +2156,30 @@ class ConfigOpts(collections.Mapping):
         else:
             for config_file in self.default_config_files:
                 ConfigParser._parse_file(config_file, namespace)
-        return self._oparser.parse_args(self._args, namespace)
+
+        self._oparser.parse_args(self._args, namespace)
+
+        self._validate_cli_options(namespace)
+
+        return namespace
+
+    def _validate_cli_options(self, namespace):
+        for opt, group in sorted(self._all_cli_opts(),
+                                 key=lambda x: x[0].name):
+            group_name = group.name if group else None
+            try:
+                value = opt._get_from_namespace(namespace, group_name)
+            except KeyError:
+                continue
+
+            value = self._substitute(value, namespace=namespace)
+
+            try:
+                self._convert_value(value, opt)
+            except ValueError:
+                sys.stderr.write('argument --%s: Invalid %s value: %s' % (
+                    opt.dest, repr(opt.type), value))
+                raise SystemExit
 
     @__clear_cache
     def reload_config_files(self):
@@ -2249,12 +2283,13 @@ class ConfigOpts(collections.Mapping):
         Exposes opt values as a dict for string substitution.
         """
 
-        def __init__(self, conf):
+        def __init__(self, conf, namespace=None):
             """Construct a StrSubWrapper object.
 
             :param conf: a ConfigOpts object
             """
             self.conf = conf
+            self.namespace = namespace
 
         def __getitem__(self, key):
             """Look up an opt value from the ConfigOpts object.
@@ -2263,7 +2298,7 @@ class ConfigOpts(collections.Mapping):
             :returns: an opt value
             :raises: TemplateSubstitutionError if attribute is a group
             """
-            value = getattr(self.conf, key)
+            value = self.conf._get(key, namespace=self.namespace)
             if isinstance(value, self.conf.GroupAttr):
                 raise TemplateSubstitutionError(
                     'substituting group %s not supported' % key)

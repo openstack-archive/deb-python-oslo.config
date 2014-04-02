@@ -12,10 +12,12 @@ Contents
 
    cfg
    opts
+   types
    configopts
    helpers
    parser
    exceptions
+   styleguide
 
 Release Notes
 =============
