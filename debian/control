@@ -10,20 +10,29 @@ Build-Depends: debhelper (>= 9),
                openstack-pkg-tools,
                python-all (>= 2.6.6-3~),
                python-pbr,
-               python-setuptools
+               python-setuptools,
+               python3-all (>= 3.2),
+               python3-pbr,
+               python3-setuptools
 Build-Depends-Indep: python-coverage (>= 3.6),
                      python-fixtures (>= 0.3.14),
                      python-hacking (>= 0.8.0),
                      python-mimeparse,
                      python-mock (>= 1.0),
-                     python-nose,
-                     python-oslotest,
                      python-oslosphinx,
+                     python-oslotest,
                      python-six (>= 1.5.2),
                      python-sphinx,
                      python-subunit (>= 0.0.18),
                      python-testscenarios (>= 0.4),
                      python-testtools (>= 0.9.34),
+                     python3-mimeparse,
+                     python3-mock (>= 1.0),
+                     python3-oslotest,
+                     python3-six (>= 1.5.2),
+                     python3-subunit (>= 0.0.18),
+                     python3-testscenarios (>= 0.4),
+                     python3-testtools (>= 0.9.34),
                      subunit (>= 0.0.18),
                      testrepository (>= 0.0.18)
 Standards-Version: 3.9.5
@@ -36,9 +45,24 @@ Architecture: all
 Pre-Depends: dpkg (>= 1.15.6~)
 Depends: python-six (>= 1.5.2), ${misc:Depends}, ${python:Depends}
 Provides: python-oslo-config
-Description: Common code for Openstack Projects (configuration API)
+Description: Common code for Openstack Projects (configuration API) - Python 2.x
  The OpenStack Oslo project provides Python libraries containing
  instructure code shared by OpenStack projects.
  .
  The OpenStack Oslo Configuration API supports parsing command line
  arguments and .ini style configuration files.
+ .
+ This package provides the Python 2.x module.
+
+Package: python3-oslo.config
+Architecture: all
+Pre-Depends: dpkg (>= 1.15.6~)
+Depends: python3-six (>= 1.5.2), ${misc:Depends}, ${python3:Depends}
+Description: Common code for Openstack Projects (configuration API) - Python 3.x
+ The OpenStack Oslo project provides Python libraries containing
+ instructure code shared by OpenStack projects.
+ .
+ The OpenStack Oslo Configuration API supports parsing command line
+ arguments and .ini style configuration files.
+ .
+ This package provides the Python 3.x module.

@@ -1,19 +1,34 @@
 #!/usr/bin/make -f
 
+PYTHONS:=$(shell pyversions -vr)
+PYTHON3S:=$(shell py3versions -vr)
+
 include /usr/share/openstack-pkg-tools/pkgos.make
 export OSLO_PACKAGE_VERSION=$(VERSION)
 
 %:
-	dh $@  --with python2
+	dh $@  --with python2,python3
+
+override_dh_auto_install:
+	set -e && for pyvers in $(PYTHONS); do \
+		python$$pyvers setup.py install --install-layout=deb \
+			--root $(CURDIR)/debian/python-oslo.config; \
+	done
+	set -e && for pyvers in $(PYTHON3S); do \
+		python$$pyvers setup.py install --install-layout=deb \
+			--root $(CURDIR)/debian/python3-oslo.config; \
+	done
 
 override_dh_auto_test:
 ifeq (,$(findstring nocheck, $(DEB_BUILD_OPTIONS)))
-	rm -rf .testrepository
-	testr init
 	set -e && \
+	for i in $(PYTHONS) $(PYTHON3S) ; do \
+		rm -rf .testrepository ; \
+		testr init ; \
 		TEMP_REZ=`mktemp -t` && \
-		PYTHONPATH=$(CURDIR) testr run --subunit | tee $$TEMP_REZ | subunit2pyunit || true ; \
+		PYTHON=python$$i PYTHONPATH=$(CURDIR) testr run --subunit | tee $$TEMP_REZ | subunit2pyunit || true ; \
 		cat $$TEMP_REZ | subunit-filter -s --no-passthrough | subunit-stats || true ; \
-		rm -f $$TEMP_REZ ;
-	testr slowest
+		rm -f $$TEMP_REZ ; \
+		testr slowest ; \
+	done
 endif
