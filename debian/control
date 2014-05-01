@@ -66,3 +66,17 @@ Description: Common code for Openstack Projects (configuration API) - Python 3.x
  arguments and .ini style configuration files.
  .
  This package provides the Python 3.x module.
+
+Package: python-oslo.config-doc
+Architecture: all
+Pre-Depends: dpkg (>= 1.15.6~)
+Depends: ${sphinxdoc:Depends}, ${misc:Depends}
+Provides: python-oslo-config
+Description: Common code for Openstack Projects (configuration API) - doc
+ The OpenStack Oslo project provides Python libraries containing
+ infrastructure code shared by OpenStack projects.
+ .
+ The OpenStack Oslo Configuration API supports parsing command line
+ arguments and .ini style configuration files.
+ .
+ This package provides the documentation.

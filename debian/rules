@@ -9,7 +9,7 @@ include /usr/share/openstack-pkg-tools/pkgos.make
 export OSLO_PACKAGE_VERSION=$(VERSION)
 
 %:
-	dh $@  --with python2,python3
+	dh $@ --buildsystem=python_distutils --with python2,python3,sphinxdoc
 
 override_dh_auto_install:
 	set -e && for pyvers in $(PYTHONS); do \
@@ -34,4 +34,10 @@ ifeq (,$(findstring nocheck, $(DEB_BUILD_OPTIONS)))
 		rm -f $$TEMP_REZ ; \
 		testr slowest ; \
 	done
+endif
+
+override_dh_sphinxdoc:
+ifeq (,$(findstring nodocs, $(DEB_BUILD_OPTIONS)))
+	sphinx-build -b html doc/source $(CURDIR)/debian/python-oslo.config-doc/usr/share/doc/python-oslo.config-doc/html
+	dh_sphinxdoc -O--buildsystem=python_distutils
 endif
