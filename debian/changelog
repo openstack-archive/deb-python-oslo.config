@@ -1,4 +1,4 @@
-oslo-config (1:1.3.0-2) UNRELEASED; urgency=medium
+oslo-config (1:1.3.0-2) unstable; urgency=medium
 
   * Added Python3 support.
   * Fixed long description typo (Closes: #745291).
