@@ -24,7 +24,7 @@ override_dh_auto_install:
 override_dh_auto_test:
 ifeq (,$(findstring nocheck, $(DEB_BUILD_OPTIONS)))
 	set -e && set -x && \
-	for i in $(PYTHONS) $(PYTHON3S) ; do \
+	for i in 2.7 $(PYTHON3S) ; do \
 		echo "===> Testing for python$$i" ; \
 		rm -rf .testrepository ; \
 		testr init ; \
