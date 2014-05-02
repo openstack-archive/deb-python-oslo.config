@@ -1,0 +1,9 @@
+Document: python-oslo.config-doc
+Title: python-oslo.config Documentation
+Author: OpenStack
+Abstract: Sphinx documentation for python-oslo.config
+Section: Programming/Python
+
+Format: HTML
+Index: /usr/share/doc/python-oslo.config-doc/html/index.html
+Files: /usr/share/doc/python-oslo.config-doc/html/*
