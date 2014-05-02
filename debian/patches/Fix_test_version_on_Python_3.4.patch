@@ -1,0 +1,38 @@
+Description: [PATCH] Fix test_version on Python 3.4
+ Since Python 3.4, argparse has been printing the version on stdout rather than
+ on stderr as it used to. We should fix this now because:
+ - this is an issue when packaging oslo-config in Debian Sid, which uses Python
+ 3.4;
+ - it will be needed when Openstack switches to 3.4 anyway.
+Author: Cyril Roelandt <cyril.roelandt@enovance.com>
+Date: Sun, 6 Apr 2014 19:36:27 +0200
+Origin: upstream, https://review.openstack.org/#/c/85608/
+Change-Id: I6a84009acb8621d62465c4cd2573200a07b6b4ab
+Last-Update: 2014-05-02
+
+diff --git a/tests/test_cfg.py b/tests/test_cfg.py
+index f1f576b..a4aaf42 100644
+--- a/tests/test_cfg.py
++++ b/tests/test_cfg.py
+@@ -479,9 +479,16 @@ def test_help(self):
+         self.assertTrue('--config-file' in sys.stdout.getvalue())
+ 
+     def test_version(self):
+-        self.useFixture(fixtures.MonkeyPatch('sys.stderr', moves.StringIO()))
++        # In Python 3.4+, argparse prints the version on stdout; before 3.4, it
++        # printed it on stderr.
++        if sys.version_info >= (3, 4):
++            stream_name = 'stdout'
++        else:
++            stream_name = 'stderr'
++        self.useFixture(fixtures.MonkeyPatch("sys.%s" % stream_name,
++                                             moves.StringIO()))
+         self.assertRaises(SystemExit, self.conf, ['--version'])
+-        self.assertTrue('1.0' in sys.stderr.getvalue())
++        self.assertTrue('1.0' in getattr(sys, stream_name).getvalue())
+ 
+     def test_config_file(self):
+         paths = self.create_tempfiles([('1', '[DEFAULT]'),
+-- 
+1.9.1
+
