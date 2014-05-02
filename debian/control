@@ -68,6 +68,7 @@ Description: Common code for Openstack Projects (configuration API) - Python 3.x
  This package provides the Python 3.x module.
 
 Package: python-oslo.config-doc
+Section: doc
 Architecture: all
 Pre-Depends: dpkg (>= 1.15.6~)
 Depends: ${sphinxdoc:Depends}, ${misc:Depends}
