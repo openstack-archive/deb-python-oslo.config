@@ -11,6 +11,7 @@ Build-Depends: debhelper (>= 9),
                python-all (>= 2.6.6-3~),
                python-pbr,
                python-setuptools,
+               python-sphinx,
                python3-all (>= 3.2),
                python3-pbr,
                python3-setuptools
@@ -19,17 +20,18 @@ Build-Depends-Indep: python-coverage (>= 3.6),
                      python-hacking (>= 0.8.0),
                      python-mimeparse,
                      python-mock (>= 1.0),
+                     python-netaddr,
                      python-oslosphinx,
                      python-oslotest,
-                     python-six (>= 1.5.2),
-                     python-sphinx,
+                     python-six (>= 1.7.0),
+                     python-stevedore (>= 0.14),
                      python-subunit (>= 0.0.18),
                      python-testscenarios (>= 0.4),
                      python-testtools (>= 0.9.34),
                      python3-mimeparse,
                      python3-mock (>= 1.0),
                      python3-oslotest,
-                     python3-six (>= 1.5.2),
+                     python3-six (>= 1.7.0),
                      python3-subunit (>= 0.0.18),
                      python3-testscenarios (>= 0.4),
                      python3-testtools (>= 0.9.34),
@@ -43,7 +45,11 @@ Homepage: https://github.com/openstack/oslo-incubator
 Package: python-oslo.config
 Architecture: all
 Pre-Depends: dpkg (>= 1.15.6~)
-Depends: python-six (>= 1.5.2), ${misc:Depends}, ${python:Depends}
+Depends: python-netaddr,
+         python-six (>= 1.7.0),
+         python-stevedore (>= 0.14),
+         ${misc:Depends},
+         ${python:Depends}
 Provides: python-oslo-config
 Description: Common code for Openstack Projects (configuration API) - Python 2.x
  The OpenStack Oslo project provides Python libraries containing
@@ -57,7 +63,11 @@ Description: Common code for Openstack Projects (configuration API) - Python 2.x
 Package: python3-oslo.config
 Architecture: all
 Pre-Depends: dpkg (>= 1.15.6~)
-Depends: python3-six (>= 1.5.2), ${misc:Depends}, ${python3:Depends}
+Depends: python3-netaddr,
+         python3-six (>= 1.7.0),
+         python3-stevedore (>= 0.14),
+         ${misc:Depends},
+         ${python3:Depends}
 Description: Common code for Openstack Projects (configuration API) - Python 3.x
  The OpenStack Oslo project provides Python libraries containing
  infrastructure code shared by OpenStack projects.
@@ -71,7 +81,7 @@ Package: python-oslo.config-doc
 Section: doc
 Architecture: all
 Pre-Depends: dpkg (>= 1.15.6~)
-Depends: ${sphinxdoc:Depends}, ${misc:Depends}
+Depends: ${misc:Depends}, ${sphinxdoc:Depends}
 Provides: python-oslo-config
 Description: Common code for Openstack Projects (configuration API) - doc
  The OpenStack Oslo project provides Python libraries containing
