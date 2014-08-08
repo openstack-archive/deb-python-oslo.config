@@ -2,6 +2,7 @@ oslo-config (1:1.4.0.0~a3-1) unstable; urgency=medium
 
   * New upstream release.
   * Reviewed (build-)depends for this release.
+  * Drops Fix test_version on Python 3.4 patch, applied upstream.
 
  -- Thomas Goirand <zigo@debian.org>  Fri, 08 Aug 2014 18:05:09 +0800
 
