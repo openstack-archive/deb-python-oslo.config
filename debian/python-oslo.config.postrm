@@ -1,0 +1,11 @@
+#!/bin/sh
+
+set -e
+
+if [ "$1" = "remove" ] || [ "$1" = "disappear" ]; then
+	update-alternatives --remove oslo-config-generator /usr/bin/python2-oslo-config-generator
+fi
+
+#DEBHELPER#
+
+exit 0

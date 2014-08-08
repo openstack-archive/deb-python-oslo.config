@@ -1,3 +1,9 @@
+oslo-config (1:1.4.0.0~a3-2) unstable; urgency=medium
+
+  * Added update-alternative for the oslo-config-generator binary.
+
+ -- Thomas Goirand <zigo@debian.org>  Sat, 09 Aug 2014 00:51:02 +0800
+
 oslo-config (1:1.4.0.0~a3-1) unstable; urgency=medium
 
   * New upstream release.
