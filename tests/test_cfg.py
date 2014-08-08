@@ -1,4 +1,4 @@
-# Copyright 2012 Red Hat, Inc.
+# Copyright 2014 Red Hat, Inc.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
@@ -14,6 +14,7 @@
 
 import argparse
 import errno
+import functools
 import os
 import shutil
 import sys
@@ -21,12 +22,12 @@ import tempfile
 
 import fixtures
 import mock
+from oslotest import base
 import six
 from six import moves
 import testscenarios
 
 from oslo.config import cfg
-from oslotest import base
 
 load_tests = testscenarios.load_tests_apply_scenarios
 
@@ -265,6 +266,9 @@ class CliOptsTestCase(BaseTestCase):
     deps - a tuple of deprecated name/group
     """
 
+    IPv4Opt = functools.partial(cfg.IPOpt, version=4)
+    IPv6Opt = functools.partial(cfg.IPOpt, version=6)
+
     scenarios = [
         ('str_default',
          dict(opt_class=cfg.StrOpt, default=None, cli_args=[], value=None,
@@ -364,6 +368,22 @@ class CliOptsTestCase(BaseTestCase):
         ('float_arg_deprecated_group_and_name',
          dict(opt_class=cfg.FloatOpt, default=None,
               cli_args=['--old-oof', '2.0'], value=2.0, deps=('oof', 'old'))),
+        ('ipv4addr_arg',
+         dict(opt_class=IPv4Opt, default=None,
+              cli_args=['--foo', '192.168.0.1'], value='192.168.0.1',
+              deps=(None, None))),
+        ('ipaddr_arg_implicitv4',
+         dict(opt_class=cfg.IPOpt, default=None,
+              cli_args=['--foo', '192.168.0.1'], value='192.168.0.1',
+              deps=(None, None))),
+        ('ipaddr_arg_implicitv6',
+         dict(opt_class=cfg.IPOpt, default=None,
+              cli_args=['--foo', 'abcd:ef::1'], value='abcd:ef::1',
+              deps=(None, None))),
+        ('ipv6addr_arg',
+         dict(opt_class=IPv6Opt, default=None,
+              cli_args=['--foo', 'abcd:ef::1'], value='abcd:ef::1',
+              deps=(None, None))),
         ('list_default',
          dict(opt_class=cfg.ListOpt, default=['bar'],
               cli_args=[], value=['bar'], deps=(None, None))),
@@ -479,9 +499,16 @@ class CliSpecialOptsTestCase(BaseTestCase):
         self.assertTrue('--config-file' in sys.stdout.getvalue())
 
     def test_version(self):
-        self.useFixture(fixtures.MonkeyPatch('sys.stderr', moves.StringIO()))
+        # In Python 3.4+, argparse prints the version on stdout; before 3.4, it
+        # printed it on stderr.
+        if sys.version_info >= (3, 4):
+            stream_name = 'stdout'
+        else:
+            stream_name = 'stderr'
+        self.useFixture(fixtures.MonkeyPatch("sys.%s" % stream_name,
+                                             moves.StringIO()))
         self.assertRaises(SystemExit, self.conf, ['--version'])
-        self.assertTrue('1.0' in sys.stderr.getvalue())
+        self.assertTrue('1.0' in getattr(sys, stream_name).getvalue())
 
     def test_config_file(self):
         paths = self.create_tempfiles([('1', '[DEFAULT]'),
@@ -504,11 +531,17 @@ class PositionalTestCase(BaseTestCase):
         self.assertTrue(hasattr(self.conf, 'foo'))
         self.assertEqual(self.conf.foo, value)
 
-    def test_positional_str_default(self):
+    def test_positional_str_none_default(self):
         self._do_pos_test(cfg.StrOpt, None, [], None)
+
+    def test_positional_str_default(self):
+        self._do_pos_test(cfg.StrOpt, 'bar', [], 'bar')
 
     def test_positional_str_arg(self):
         self._do_pos_test(cfg.StrOpt, None, ['bar'], 'bar')
+
+    def test_positional_int_none_default(self):
+        self._do_pos_test(cfg.IntOpt, None, [], None)
 
     def test_positional_int_default(self):
         self._do_pos_test(cfg.IntOpt, 10, [], 10)
@@ -516,11 +549,20 @@ class PositionalTestCase(BaseTestCase):
     def test_positional_int_arg(self):
         self._do_pos_test(cfg.IntOpt, None, ['20'], 20)
 
+    def test_positional_float_none_default(self):
+        self._do_pos_test(cfg.FloatOpt, None, [], None)
+
     def test_positional_float_default(self):
         self._do_pos_test(cfg.FloatOpt, 1.0, [], 1.0)
 
     def test_positional_float_arg(self):
         self._do_pos_test(cfg.FloatOpt, None, ['2.0'], 2.0)
+
+    def test_positional_list_none_default(self):
+        self._do_pos_test(cfg.ListOpt, None, [], None)
+
+    def test_positional_list_empty_default(self):
+        self._do_pos_test(cfg.ListOpt, [], [], [])
 
     def test_positional_list_default(self):
         self._do_pos_test(cfg.ListOpt, ['bar'], [], ['bar'])
@@ -529,6 +571,12 @@ class PositionalTestCase(BaseTestCase):
         self._do_pos_test(cfg.ListOpt, None,
                           ['blaa,bar'], ['blaa', 'bar'])
 
+    def test_positional_dict_none_default(self):
+        self._do_pos_test(cfg.DictOpt, None, [], None)
+
+    def test_positional_dict_empty_default(self):
+        self._do_pos_test(cfg.DictOpt, {}, [], {})
+
     def test_positional_dict_default(self):
         self._do_pos_test(cfg.DictOpt, {'key1': 'bar'}, [], {'key1': 'bar'})
 
@@ -536,6 +584,12 @@ class PositionalTestCase(BaseTestCase):
         self._do_pos_test(cfg.DictOpt, None,
                           ['key1:blaa,key2:bar'],
                           {'key1': 'blaa', 'key2': 'bar'})
+
+    def test_positional_multistr_none_default(self):
+        self._do_pos_test(cfg.MultiStrOpt, None, [], None)
+
+    def test_positional_multistr_empty_default(self):
+        self._do_pos_test(cfg.MultiStrOpt, [], [], [])
 
     def test_positional_multistr_default(self):
         self._do_pos_test(cfg.MultiStrOpt, ['bar'], [], ['bar'])
@@ -1638,6 +1692,133 @@ class MappingInterfaceTestCase(BaseTestCase):
         self.assertEqual(self.conf['blaa'].get('foo'), 'bar')
         self.assertTrue('bar' in self.conf['blaa'].values())
         self.assertEqual(self.conf.blaa, self.conf['blaa'])
+
+
+class OptNameSeparatorTestCast(BaseTestCase):
+
+    scenarios = [
+        ('hyphen',
+         dict(opt_name='foo-bar',
+              opt_dest='foo_bar',
+              broken_opt_dest='foo-bar',
+              cf_name='foo_bar',
+              broken_cf_name='foo-bar',
+              cli_name='foo-bar',
+              broken_cli_name='foo_bar',
+              broken=True)),  # FIXME(markmc): see #1279973
+        ('underscore',
+         dict(opt_name='foo_bar',
+              opt_dest='foo_bar',
+              broken_opt_dest='foo-bar',
+              cf_name='foo_bar',
+              broken_cf_name='foo-bar',
+              cli_name='foo_bar',
+              broken_cli_name='foo_bar',
+              broken=False)),
+    ]
+
+    def test_attribute_and_key_name(self):
+        self.conf.register_opt(cfg.StrOpt(self.opt_name))
+
+        self.assertTrue(hasattr(self.conf, self.opt_dest))
+        self.assertFalse(hasattr(self.conf, self.broken_opt_dest))
+        self.assertIn(self.opt_dest, self.conf)
+        self.assertNotIn(self.broken_opt_dest, self.conf)
+
+    def test_cli_opt_name(self):
+        self.conf.register_cli_opt(cfg.BoolOpt(self.opt_name))
+
+        self.conf(['--' + self.cli_name])
+
+        self.assertTrue(getattr(self.conf, self.opt_dest))
+
+    def test_config_file_opt_name(self):
+        self.conf.register_opt(cfg.BoolOpt(self.opt_name))
+
+        paths = self.create_tempfiles([('test',
+                                        '[DEFAULT]\n' +
+                                        self.cf_name + ' = True\n' +
+                                        self.broken_cf_name + ' = False\n')])
+
+        self.conf(['--config-file', paths[0]])
+
+        self.assertTrue(getattr(self.conf, self.opt_dest))
+
+    def test_deprecated_name(self):
+        self.conf.register_opt(cfg.StrOpt('foobar',
+                                          deprecated_name=self.opt_name))
+
+        self.assertTrue(hasattr(self.conf, 'foobar'))
+        self.assertFalse(hasattr(self.conf, self.opt_dest))
+        self.assertFalse(hasattr(self.conf, self.broken_opt_dest))
+        self.assertIn('foobar', self.conf)
+        self.assertNotIn(self.opt_dest, self.conf)
+        self.assertNotIn(self.broken_opt_dest, self.conf)
+
+    def test_deprecated_name_cli(self):
+        self.conf.register_cli_opt(cfg.BoolOpt('foobar',
+                                               deprecated_name=self.opt_name))
+
+        # FIXME(markmc): this should be self.cli_name, see #1279973
+        if self.broken:
+            self.conf(['--' + self.broken_cli_name])
+        else:
+            self.conf(['--' + self.cli_name])
+
+        self.assertTrue(self.conf.foobar)
+
+    def test_deprecated_name_config_file(self):
+        self.conf.register_opt(cfg.BoolOpt('foobar',
+                                           deprecated_name=self.opt_name))
+
+        paths = self.create_tempfiles([('test',
+                                        '[DEFAULT]\n' +
+                                        self.cf_name + ' = True\n')])
+
+        self.conf(['--config-file', paths[0]])
+
+        self.assertTrue(self.conf.foobar)
+
+    def test_deprecated_opts(self):
+        oldopts = [cfg.DeprecatedOpt(self.opt_name)]
+        self.conf.register_opt(cfg.StrOpt('foobar',
+                                          deprecated_opts=oldopts))
+
+        self.assertTrue(hasattr(self.conf, 'foobar'))
+        self.assertFalse(hasattr(self.conf, self.opt_dest))
+        self.assertFalse(hasattr(self.conf, self.broken_opt_dest))
+        self.assertIn('foobar', self.conf)
+        self.assertNotIn(self.opt_dest, self.conf)
+        self.assertNotIn(self.broken_opt_dest, self.conf)
+
+    def test_deprecated_opts_cli(self):
+        oldopts = [cfg.DeprecatedOpt(self.opt_name)]
+        self.conf.register_cli_opt(cfg.BoolOpt('foobar',
+                                               deprecated_opts=oldopts))
+
+        self.conf(['--' + self.cli_name])
+
+        self.assertTrue(self.conf.foobar)
+
+    def test_deprecated_opts_config_file(self):
+        oldopts = [cfg.DeprecatedOpt(self.opt_name)]
+        self.conf.register_opt(cfg.BoolOpt('foobar',
+                                           deprecated_opts=oldopts))
+
+        # FIXME(markmc): this should be self.cf_name, see #1279973
+        if self.broken:
+            paths = self.create_tempfiles([('test',
+                                            '[DEFAULT]\n' +
+                                            self.broken_cf_name +
+                                            ' = True\n')])
+        else:
+            paths = self.create_tempfiles([('test',
+                                            '[DEFAULT]\n' +
+                                            self.cf_name + ' = True\n')])
+
+        self.conf(['--config-file', paths[0]])
+
+        self.assertTrue(self.conf.foobar)
 
 
 class ReRegisterOptTestCase(BaseTestCase):
@@ -3052,6 +3233,50 @@ class MultipleDeprecatedOptionsTestCase(BaseTestCase):
         self.assertEqual(self.conf.blaa.foo, 'bar')
 
 
+class MultipleDeprecatedCliOptionsTestCase(BaseTestCase):
+
+    def test_conf_file_override_use_deprecated_name_and_group(self):
+        self.conf.register_group(cfg.OptGroup('blaa'))
+        self.conf.register_cli_opt(cfg.StrOpt('foo',
+                                              deprecated_name='oldfoo',
+                                              deprecated_group='oldgroup'),
+                                   group='blaa')
+
+        paths = self.create_tempfiles([('test',
+                                        '[oldgroup]\n'
+                                        'oldfoo = bar\n')])
+
+        self.conf(['--config-file', paths[0]])
+        self.assertEqual(self.conf.blaa.foo, 'bar')
+
+    def test_conf_file_override_use_deprecated_opts(self):
+        self.conf.register_group(cfg.OptGroup('blaa'))
+        oldopts = [cfg.DeprecatedOpt('oldfoo', group='oldgroup')]
+        self.conf.register_cli_opt(cfg.StrOpt('foo', deprecated_opts=oldopts),
+                                   group='blaa')
+
+        paths = self.create_tempfiles([('test',
+                                        '[oldgroup]\n'
+                                        'oldfoo = bar\n')])
+
+        self.conf(['--config-file', paths[0]])
+        self.assertEqual(self.conf.blaa.foo, 'bar')
+
+    def test_conf_file_override_use_deprecated_multi_opts(self):
+        self.conf.register_group(cfg.OptGroup('blaa'))
+        oldopts = [cfg.DeprecatedOpt('oldfoo', group='oldgroup'),
+                   cfg.DeprecatedOpt('oldfoo2', group='oldgroup2')]
+        self.conf.register_cli_opt(cfg.StrOpt('foo', deprecated_opts=oldopts),
+                                   group='blaa')
+
+        paths = self.create_tempfiles([('test',
+                                        '[oldgroup2]\n'
+                                        'oldfoo2 = bar\n')])
+
+        self.conf(['--config-file', paths[0]])
+        self.assertEqual(self.conf.blaa.foo, 'bar')
+
+
 class ChoicesTestCase(BaseTestCase):
 
     def test_choice_default(self):
@@ -3151,3 +3376,6 @@ class OptTestCase(base.BaseTestCase):
         d1 = cfg.ListOpt('oldfoo')
         d2 = cfg.ListOpt('oldbar')
         self.assertNotEqual(d1, d2)
+
+    def test_illegal_name(self):
+        self.assertRaises(ValueError, cfg.BoolOpt, '_foo')
