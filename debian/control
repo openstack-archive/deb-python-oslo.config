@@ -39,6 +39,15 @@ Build-Depends-Indep: python-coverage (>= 3.6),
                      python3-testtools (>= 0.9.34),
                      subunit (>= 0.0.18),
                      testrepository (>= 0.0.18)
+Build-Conflicts: python-oslo.config,
+                 python-oslo.db,
+                 python-oslo.i18n,
+                 python-oslo.messaging,
+                 python-oslo.rootwrap,
+                 python-oslo.vmware,
+                 python3-oslo.config,
+                 python3-oslo.i18n,
+                 python3-oslo.rootwrap
 Standards-Version: 3.9.5
 Vcs-Browser: http://anonscm.debian.org/gitweb/?p=openstack/oslo-config.git
 Vcs-Git: git://anonscm.debian.org/openstack/oslo-config.git
