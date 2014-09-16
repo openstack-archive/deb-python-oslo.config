@@ -1,10 +1,73 @@
-oslo-config (1:1.1.0-1) experimental; urgency=low
+oslo-config (1:1.4.0.0~a3-2) unstable; urgency=medium
+
+  * Added update-alternative for the oslo-config-generator binary.
+
+ -- Thomas Goirand <zigo@debian.org>  Sat, 09 Aug 2014 00:51:02 +0800
+
+oslo-config (1:1.4.0.0~a3-1) unstable; urgency=medium
 
   * New upstream release.
-  * Added new UPSTREAM_GIT in debian/rules, because upstream changed location
-    after renaming from oslo-config -> oslo.config.
+  * Reviewed (build-)depends for this release.
+  * Drops Fix test_version on Python 3.4 patch, applied upstream.
+  * Added Build-Conflicts will all python{3,}-oslo.* packages.
 
- -- Thomas Goirand <zigo@debian.org>  Sun, 17 Mar 2013 01:57:58 +0800
+ -- Thomas Goirand <zigo@debian.org>  Fri, 08 Aug 2014 18:05:09 +0800
+
+oslo-config (1:1.3.0-2) unstable; urgency=medium
+
+  * Do not run unit tests using python 2.6.
+
+ -- Thomas Goirand <zigo@debian.org>  Fri, 02 May 2014 15:33:56 +0000
+
+oslo-config (1:1.3.0-1) unstable; urgency=medium
+
+  * New upstream release.
+  * Added Python3 support.
+  * Fixed long description typo (Closes: #745291).
+  * Added UPSTREAM_GIT in debian/rules.
+  * Added a -doc package.
+  * Added Fix_test_version_on_Python_3.4.patch
+  * Added extend-diff-ignore = "^[^/]*[.]egg-info/" to debian/source/options.
+  * Bumped Standards-Version: to 3.9.5.
+  * Cleans correctly to allow double builds.
+
+ -- Thomas Goirand <zigo@debian.org>  Fri, 02 May 2014 15:13:59 +0000
+
+oslo-config (1:1.3.0~a0-2) unstable; urgency=medium
+
+  * New upstream release.
+  * Added --testr-args='--subunit  ' when calling testr.
+
+ -- Thomas Goirand <zigo@debian.org>  Sun, 09 Mar 2014 14:37:36 +0800
+
+oslo-config (1:1.2.0a4-2) unstable; urgency=low
+
+  * Missing build-depends: python-d2to1.
+
+ -- Thomas Goirand <zigo@debian.org>  Wed, 11 Sep 2013 10:18:29 +0000
+
+oslo-config (1:1.2.0a4-1) unstable; urgency=low
+
+  * New upstream release.
+  * Fixed the VCS fields.
+  * Added build-depends: python-pbr, python-six & testrepository and fixed the
+    start of unit tests using testrepository instead of nosetests.
+
+ -- Thomas Goirand <zigo@debian.org>  Sun, 01 Sep 2013 21:35:44 +0800
+
+oslo-config (1:1.1.0-3) unstable; urgency=low
+
+  * Ran wrap-and-sort.
+  * Drops python-nosexcover from build-dependencies.
+
+ -- Thomas Goirand <zigo@debian.org>  Fri, 12 Jul 2013 13:35:02 +0800
+
+oslo-config (1:1.1.0-1) unstable; urgency=low
+
+  * New upstream version.
+  * Uploading to unstable.
+
+ -- Thomas Goirand <zigo@debian.org>  Sun, 12 May 2013 13:46:20 +0000
 
 oslo-config (1.1.0b1-1) experimental; urgency=low
 

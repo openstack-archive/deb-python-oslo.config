@@ -1,15 +1,49 @@
 #!/usr/bin/make -f
 
-#export DH_VERBOSE=1
+PYTHONS:=$(shell pyversions -vr)
+PYTHON3S:=$(shell py3versions -vr)
 
 UPSTREAM_GIT = git://github.com/openstack/oslo.config.git
 
 include /usr/share/openstack-pkg-tools/pkgos.make
-
 export OSLO_PACKAGE_VERSION=$(VERSION)
 
 %:
-	dh $@  --with python2
+	dh $@ --buildsystem=python_distutils --with python2,python3,sphinxdoc
+
+override_dh_auto_install:
+	set -e && for pyvers in $(PYTHONS); do \
+		python$$pyvers setup.py install --install-layout=deb \
+			--root $(CURDIR)/debian/python-oslo.config; \
+	done
+	set -e && for pyvers in $(PYTHON3S); do \
+		python$$pyvers setup.py install --install-layout=deb \
+			--root $(CURDIR)/debian/python3-oslo.config; \
+	done
+	mv $(CURDIR)/debian/python-oslo.config/usr/bin/oslo-config-generator $(CURDIR)/debian/python-oslo.config/usr/bin/python2-oslo-config-generator
+	mv $(CURDIR)/debian/python3-oslo.config/usr/bin/oslo-config-generator $(CURDIR)/debian/python3-oslo.config/usr/bin/python3-oslo-config-generator
 
 override_dh_auto_test:
-	nosetests
+ifeq (,$(findstring nocheck, $(DEB_BUILD_OPTIONS)))
+	set -e && set -x && \
+	for i in 2.7 $(PYTHON3S) ; do \
+		echo "===> Testing for python$$i" ; \
+		rm -rf .testrepository ; \
+		testr init ; \
+		TEMP_REZ=`mktemp -t` && \
+		PYTHON=python$$i PYTHONPATH=$(CURDIR) testr run --subunit | tee $$TEMP_REZ | subunit2pyunit ; \
+		cat $$TEMP_REZ | subunit-filter -s --no-passthrough | subunit-stats ; \
+		rm -f $$TEMP_REZ ; \
+		testr slowest ; \
+	done
+endif
+
+override_dh_sphinxdoc:
+ifeq (,$(findstring nodocs, $(DEB_BUILD_OPTIONS)))
+	sphinx-build -b html doc/source $(CURDIR)/debian/python-oslo.config-doc/usr/share/doc/python-oslo.config-doc/html
+	dh_sphinxdoc -O--buildsystem=python_distutils
+endif
+
+override_dh_clean:
+	dh_clean -O--buildsystem=python_distutils
+	rm -rf .testrepository build
