@@ -1,17 +1,12 @@
-oslo-config (1:1.4.0.0~a3-2) unstable; urgency=medium
-
-  * Added update-alternative for the oslo-config-generator binary.
-
- -- Thomas Goirand <zigo@debian.org>  Sat, 09 Aug 2014 00:51:02 +0800
-
-oslo-config (1:1.4.0.0~a3-1) unstable; urgency=medium
+oslo-config (1:1.4.0.0~a5-1) experimental; urgency=medium
 
   * New upstream release.
+  * Added update-alternative for the oslo-config-generator binary.
   * Reviewed (build-)depends for this release.
   * Drops Fix test_version on Python 3.4 patch, applied upstream.
   * Added Build-Conflicts will all python{3,}-oslo.* packages.
 
- -- Thomas Goirand <zigo@debian.org>  Fri, 08 Aug 2014 18:05:09 +0800
+ -- Thomas Goirand <zigo@debian.org>  Sat, 09 Aug 2014 00:51:02 +0800
 
 oslo-config (1:1.3.0-2) unstable; urgency=medium
 
