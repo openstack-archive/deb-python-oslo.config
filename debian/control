@@ -20,9 +20,9 @@ Build-Depends-Indep: python-coverage (>= 3.6),
                      python-hacking (>= 0.8.0),
                      python-mimeparse,
                      python-mock (>= 1.0),
-                     python-netaddr,
-                     python-oslosphinx,
-                     python-oslotest,
+                     python-netaddr (>= 0.7.12),
+                     python-oslosphinx (>= 2.2.0.0~a2),
+                     python-oslotest (>= 1.1.0.0~a1),
                      python-six (>= 1.7.0),
                      python-stevedore (>= 0.14),
                      python-subunit (>= 0.0.18),
@@ -30,7 +30,7 @@ Build-Depends-Indep: python-coverage (>= 3.6),
                      python-testtools (>= 0.9.34),
                      python3-mimeparse,
                      python3-mock (>= 1.0),
-                     python3-netaddr,
+                     python3-netaddr (>= 0.7.12),
                      python3-oslotest,
                      python3-six (>= 1.7.0),
                      python3-stevedore (>= 0.14),
@@ -56,7 +56,7 @@ Homepage: https://github.com/openstack/oslo-incubator
 Package: python-oslo.config
 Architecture: all
 Pre-Depends: dpkg (>= 1.15.6~)
-Depends: python-netaddr,
+Depends: python-netaddr (>= 0.7.12),
          python-six (>= 1.7.0),
          python-stevedore (>= 0.14),
          ${misc:Depends},
@@ -74,7 +74,7 @@ Description: Common code for Openstack Projects (configuration API) - Python 2.x
 Package: python3-oslo.config
 Architecture: all
 Pre-Depends: dpkg (>= 1.15.6~)
-Depends: python3-netaddr,
+Depends: python3-netaddr (>= 0.7.12),
          python3-six (>= 1.7.0),
          python3-stevedore (>= 0.14),
          ${misc:Depends},
