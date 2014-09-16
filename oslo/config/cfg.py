@@ -835,6 +835,18 @@ class DeprecatedOpt(object):
     deprecated options are present, the option corresponding to
     the first element of deprecated_opts will be chosen.
 
+    If group is None, the DeprecatedOpt lookup will happen within the same
+    group the new option is in. For example::
+
+        oldopts = [cfg.DeprecatedOpt('oldfoo'),
+                   cfg.DeprecatedOpt('oldfoo2', group='DEFAULT')]
+
+        cfg.CONF.register_group(cfg.OptGroup('blaa'))
+        cfg.CONF.register_opt(cfg.StrOpt('foo', deprecated_opts=oldopts),
+                              group='blaa')
+
+    In the example above, `oldfoo` will be looked up in the `blaa` group and
+    `oldfoo2` in the `DEFAULT` group.
     """
 
     def __init__(self, name, group=None):
@@ -1972,7 +1984,7 @@ class ConfigOpts(collections.Mapping):
 
         def _sanitize(opt, value):
             """Obfuscate values of options declared secret."""
-            return value if not opt.secret else '*' * len(str(value))
+            return value if not opt.secret else '*' * 4
 
         for opt_name in sorted(self._opts):
             opt = self._get_opt_info(opt_name)['opt']
@@ -2059,7 +2071,8 @@ class ConfigOpts(collections.Mapping):
             namespace = self._namespace
 
         def convert(value):
-            return self._convert_value(self._substitute(value, namespace), opt)
+            return self._convert_value(
+                self._substitute(value, group, namespace), opt)
 
         if namespace is not None:
             group_name = group.name if group else None
@@ -2087,19 +2100,21 @@ class ConfigOpts(collections.Mapping):
 
         return None
 
-    def _substitute(self, value, namespace=None):
+    def _substitute(self, value, group=None, namespace=None):
         """Perform string template substitution.
 
         Substitute any template variables (for example $foo, ${bar}) in
         the supplied string value(s) with opt values.
 
         :param value: the string value, or list of string values
+        :param group: the group that retrieves the option value from
         :param namespace: the namespace object that retrieves the option
                           value from
         :returns: the substituted string(s)
         """
         if isinstance(value, list):
-            return [self._substitute(i, namespace=namespace) for i in value]
+            return [self._substitute(i, group=group, namespace=namespace)
+                    for i in value]
         elif isinstance(value, str):
             # Treat a backslash followed by the dollar sign "\$"
             # the same as the string template escape "$$" as it is
@@ -2107,8 +2122,9 @@ class ConfigOpts(collections.Mapping):
             if '\$' in value:
                 value = value.replace('\$', '$$')
             tmpl = string.Template(value)
-            return tmpl.safe_substitute(
-                self.StrSubWrapper(self, namespace=namespace))
+            ret = tmpl.safe_substitute(
+                self.StrSubWrapper(self, group=group, namespace=namespace))
+            return ret
         else:
             return value
 
@@ -2239,7 +2255,7 @@ class ConfigOpts(collections.Mapping):
             except KeyError:
                 continue
 
-            value = self._substitute(value, namespace=namespace)
+            value = self._substitute(value, group=group, namespace=namespace)
 
             try:
                 self._convert_value(value, opt)
@@ -2350,13 +2366,14 @@ class ConfigOpts(collections.Mapping):
         Exposes opt values as a dict for string substitution.
         """
 
-        def __init__(self, conf, namespace=None):
+        def __init__(self, conf, group=None, namespace=None):
             """Construct a StrSubWrapper object.
 
             :param conf: a ConfigOpts object
             """
             self.conf = conf
             self.namespace = namespace
+            self.group = group
 
         def __getitem__(self, key):
             """Look up an opt value from the ConfigOpts object.
@@ -2365,7 +2382,11 @@ class ConfigOpts(collections.Mapping):
             :returns: an opt value
             :raises: TemplateSubstitutionError if attribute is a group
             """
-            value = self.conf._get(key, namespace=self.namespace)
+            try:
+                value = self.conf._get(key, group=self.group,
+                                       namespace=self.namespace)
+            except NoSuchOptError:
+                value = self.conf._get(key, namespace=self.namespace)
             if isinstance(value, self.conf.GroupAttr):
                 raise TemplateSubstitutionError(
                     'substituting group %s not supported' % key)
