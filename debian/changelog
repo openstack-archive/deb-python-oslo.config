@@ -1,3 +1,9 @@
+oslo-config (1:1.4.0.0-1) experimental; urgency=medium
+
+  * New upstream release (really is 1.4.0).
+
+ -- Thomas Goirand <zigo@debian.org>  Wed, 24 Sep 2014 02:15:48 +0000
+
 oslo-config (1:1.4.0.0~a5-1) experimental; urgency=medium
 
   * New upstream release.
