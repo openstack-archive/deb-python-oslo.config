@@ -19,8 +19,10 @@ Contents
    fixture
    parser
    exceptions
+   namespaces
    styleguide
    generator
+   contributing
 
 Release Notes
 =============
