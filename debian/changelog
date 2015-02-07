@@ -1,3 +1,9 @@
+oslo-config (1:1.6.0-1) UNRELEASED; urgency=medium
+
+  * New upstream release.
+
+ -- Thomas Goirand <zigo@debian.org>  Sat, 07 Feb 2015 20:29:26 +0100
+
 oslo-config (1:1.4.0.0-2) experimental; urgency=medium
 
   * Added argparse to py3dist-overrides.
