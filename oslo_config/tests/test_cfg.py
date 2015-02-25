@@ -28,6 +28,7 @@ from six import moves
 import testscenarios
 
 from oslo_config import cfg
+from oslo_config import types
 
 load_tests = testscenarios.load_tests_apply_scenarios
 
@@ -273,6 +274,10 @@ class CliOptsTestCase(BaseTestCase):
     IPv4Opt = functools.partial(cfg.IPOpt, version=4)
     IPv6Opt = functools.partial(cfg.IPOpt, version=6)
 
+    multi_int = functools.partial(cfg.MultiOpt, item_type=types.Integer())
+    multi_float = functools.partial(cfg.MultiOpt, item_type=types.Float())
+    multi_string = functools.partial(cfg.MultiOpt, item_type=types.String())
+
     scenarios = [
         ('str_default',
          dict(opt_class=cfg.StrOpt, default=None, cli_args=[], value=None,
@@ -480,6 +485,18 @@ class CliOptsTestCase(BaseTestCase):
          dict(opt_class=cfg.MultiStrOpt, default=None,
               cli_args=['--old-oof', 'blaa', '--old-oof', 'bar'],
               value=['blaa', 'bar'], deps=('oof', 'old'))),
+        ('multiopt_arg_int',
+         dict(opt_class=multi_int, default=None,
+              cli_args=['--foo', '1', '--foo', '2'],
+              value=[1, 2], deps=(None, None))),
+        ('multiopt_float_int',
+         dict(opt_class=multi_float, default=None,
+              cli_args=['--foo', '1.2', '--foo', '2.3'],
+              value=[1.2, 2.3], deps=(None, None))),
+        ('multiopt_string',
+         dict(opt_class=multi_string, default=None,
+              cli_args=['--foo', 'bar', '--foo', 'baz'],
+              value=["bar", "baz"], deps=(None, None))),
     ]
 
     def test_cli(self):
@@ -3533,3 +3550,113 @@ class OptTestCase(base.BaseTestCase):
 
     def test_illegal_name(self):
         self.assertRaises(ValueError, cfg.BoolOpt, '_foo')
+
+
+class SectionsTestCase(base.BaseTestCase):
+    def test_list_all_sections(self):
+        paths = self.create_tempfiles([('test.ini',
+                                        '[DEFAULT]\n'
+                                        'foo = bar\n'
+                                        '[BLAA]\n'
+                                        'bar = foo\n')])
+        config = cfg.ConfigOpts()
+        config(args=[], default_config_files=[paths[0]])
+        sections = set(config.list_all_sections())
+        self.assertEqual(sections, set(['DEFAULT', 'BLAA']))
+
+
+class DeprecationWarningTestBase(BaseTestCase):
+    def setUp(self):
+        super(DeprecationWarningTestBase, self).setUp()
+        self.log_fixture = self.useFixture(fixtures.FakeLogger())
+        self._parser_class = cfg.MultiConfigParser
+
+
+class DeprecationWarningTestScenarios(DeprecationWarningTestBase):
+    scenarios = [('default-deprecated', dict(deprecated=True,
+                                             group='DEFAULT')),
+                 ('default-not-deprecated', dict(deprecated=False,
+                                                 group='DEFAULT')),
+                 ('other-deprecated', dict(deprecated=True,
+                                           group='other')),
+                 ('other-not-deprecated', dict(deprecated=False,
+                                               group='other')),
+                 ]
+
+    def test_deprecated_logging(self):
+        self.conf.register_opt(cfg.StrOpt('foo', deprecated_name='bar'))
+        self.conf.register_group(cfg.OptGroup('other'))
+        self.conf.register_opt(cfg.StrOpt('foo', deprecated_name='bar'),
+                               group='other')
+        if self.deprecated:
+            content = 'bar=baz'
+        else:
+            content = 'foo=baz'
+        paths = self.create_tempfiles([('test',
+                                        '[' + self.group + ']\n' +
+                                        content + '\n')])
+
+        self.conf(['--config-file', paths[0]])
+        # Reference these twice to verify they only get logged once
+        if self.group == 'DEFAULT':
+            self.assertEqual('baz', self.conf.foo)
+            self.assertEqual('baz', self.conf.foo)
+        else:
+            self.assertEqual('baz', self.conf.other.foo)
+            self.assertEqual('baz', self.conf.other.foo)
+        if self.deprecated:
+            expected = (self._parser_class._deprecated_opt_message %
+                        ('bar', self.group, 'foo', self.group) + '\n')
+        else:
+            expected = ''
+        self.assertEqual(expected, self.log_fixture.output)
+
+
+class DeprecationWarningTests(DeprecationWarningTestBase):
+    def test_DeprecatedOpt(self):
+        default_deprecated = [cfg.DeprecatedOpt('bar')]
+        other_deprecated = [cfg.DeprecatedOpt('baz', group='other')]
+        self.conf.register_group(cfg.OptGroup('other'))
+        self.conf.register_opt(cfg.StrOpt('foo',
+                                          deprecated_opts=default_deprecated))
+        self.conf.register_opt(cfg.StrOpt('foo',
+                                          deprecated_opts=other_deprecated),
+                               group='other')
+        paths = self.create_tempfiles([('test',
+                                        '[DEFAULT]\n' +
+                                        'bar=baz\n' +
+                                        '[other]\n' +
+                                        'baz=baz\n')])
+        self.conf(['--config-file', paths[0]])
+        self.assertEqual('baz', self.conf.foo)
+        self.assertEqual('baz', self.conf.other.foo)
+        self.assertIn('Option "bar" from group "DEFAULT"',
+                      self.log_fixture.output)
+        self.assertIn('Option "baz" from group "other"',
+                      self.log_fixture.output)
+
+    def test_check_deprecated_default_none(self):
+        parser = self._parser_class()
+        deprecated_list = [(None, 'bar')]
+        parser._check_deprecated(('DEFAULT', 'bar'), (None, 'foo'),
+                                 deprecated_list)
+        self.assert_message_logged('bar', 'DEFAULT', 'foo', 'DEFAULT')
+        # Make sure check_deprecated didn't modify the list passed in
+        self.assertEqual([(None, 'bar')], deprecated_list)
+
+    def test_check_deprecated_none_default(self):
+        parser = self._parser_class()
+        deprecated_list = [('DEFAULT', 'bar')]
+        parser._check_deprecated((None, 'bar'), ('DEFAULT', 'foo'),
+                                 deprecated_list)
+        self.assert_message_logged('bar', 'DEFAULT', 'foo', 'DEFAULT')
+        # Make sure check_deprecated didn't modify the list passed in
+        self.assertEqual([('DEFAULT', 'bar')], deprecated_list)
+
+    def assert_message_logged(self, deprecated_name, deprecated_group,
+                              current_name, current_group):
+        expected = (self._parser_class._deprecated_opt_message %
+                    (deprecated_name, deprecated_group,
+                     current_name, current_group)
+                    )
+        self.assertEqual(expected + '\n', self.log_fixture.output)

@@ -13,15 +13,15 @@
 #    under the License.
 
 r"""
-Configuration options which may be set on the command line or in config files.
+Configuration options may be set on the command line or in config files.
 
-The schema for each option is defined using the Opt class or its sub-classes,
-for example:
+The schema for each option is defined using the
+:class:`Opt` class or its sub-classes, for example:
 
 ::
 
-    from oslo.config import cfg
-    from oslo.config import types
+    from oslo_config import cfg
+    from oslo_config import types
 
     PortType = types.Integer(1, 65535)
 
@@ -38,13 +38,14 @@ for example:
 Option Types
 ------------
 
-Options can have arbitrary types, you just need to pass type constructor
-to Opt. Type constructor is a callable object that takes a string and returns
-value of particular type or raises ValueError if given string can't be
-converted to that type.
+Options can have arbitrary types via the ``type`` constructor to
+``Opt``. The type constructor is a callable object that takes a string and
+either returns a value of that particular type or raises ValueError if
+the value can not be converted.
 
-There are predefined types: strings, integers, floats, booleans, lists,
-'multi strings' and 'key/value pairs' (dictionary) ::
+There are predefined types in :class:`oslo_config.cfg` : strings,
+integers, floats, booleans, lists, 'multi strings' and 'key/value
+pairs' (dictionary) ::
 
     enabled_apis_opt = cfg.ListOpt('enabled_apis',
                                    default=['ec2', 'osapi_compute'],
@@ -127,7 +128,7 @@ and --config-dir::
             self.register_cli_opts(opts)
 
 Option values are parsed from any supplied config files using
-oslo.config.iniparser. If none are specified, a default set is used
+oslo_config.iniparser. If none are specified, a default set is used
 for example glance-api.conf and glance-common.conf::
 
     glance-api.conf:
@@ -270,7 +271,7 @@ Global ConfigOpts
 This module also contains a global instance of the ConfigOpts class
 in order to support a common usage pattern in OpenStack::
 
-    from oslo.config import cfg
+    from oslo_config import cfg
 
     opts = [
         cfg.StrOpt('bind_host', default='0.0.0.0'),
@@ -330,8 +331,8 @@ import sys
 import six
 from six import moves
 
-from oslo.config import iniparser
-from oslo.config import types
+from oslo_config import iniparser
+from oslo_config import types
 
 LOG = logging.getLogger(__name__)
 
@@ -597,8 +598,9 @@ class Opt(object):
       name:
         the name of the option, which may include hyphens
       type:
-        a callable object that takes string and returns
-        converted and validated value
+        a callable object that takes string and returns converted and
+        validated value.  Default types are available from
+        :class:`oslo_config.types`
       dest:
         the (hyphen-less) ConfigOpts property which contains the option value
       short:
@@ -612,7 +614,7 @@ class Opt(object):
       metavar:
         the name shown as the argument to a CLI option in --help output
       help:
-        an string explaining how the options value is used
+        a string explaining how the option's value is used
     """
     multi = False
 
@@ -855,31 +857,47 @@ class DeprecatedOpt(object):
 
     Here's how you can use it::
 
-        oldopts = [cfg.DeprecatedOpt('oldfoo', group='oldgroup'),
-                   cfg.DeprecatedOpt('oldfoo2', group='oldgroup2')]
-        cfg.CONF.register_group(cfg.OptGroup('blaa'))
-        cfg.CONF.register_opt(cfg.StrOpt('foo', deprecated_opts=oldopts),
-                              group='blaa')
+        oldopts = [cfg.DeprecatedOpt('oldopt1', group='group1'),
+                   cfg.DeprecatedOpt('oldopt2', group='group2')]
+        cfg.CONF.register_group(cfg.OptGroup('group1'))
+        cfg.CONF.register_opt(cfg.StrOpt('newopt', deprecated_opts=oldopts),
+                              group='group1')
+
+    For options which have a single value (like in the example above),
+    if the new option is present ("[group1]/newopt" above), it will override
+    any deprecated options present ("[group1]/oldopt1" and "[group2]/oldopt2"
+    above).
+
+    If no group is specified for a DeprecatedOpt option (i.e. the group is
+    None), lookup will happen within the same group the new option is in.
+    For example, if no group was specified for the second option 'oldopt2' in
+    oldopts list:
+
+        oldopts = [cfg.DeprecatedOpt('oldopt1', group='group1'),
+                   cfg.DeprecatedOpt('oldopt2')]
+        cfg.CONF.register_group(cfg.OptGroup('group1'))
+        cfg.CONF.register_opt(cfg.StrOpt('newopt', deprecated_opts=oldopts),
+                              group='group1')
+
+    then lookup for that option will happen in group 'group1'.
+
+    If the new option is not present and multiple deprecated options are
+    present, the option corresponding to the first element of deprecated_opts
+    will be chosen.
 
     Multi-value options will return all new and deprecated
-    options.  For single options, if the new option is present
-    ("[blaa]/foo" above) it will override any deprecated options
-    present.  If the new option is not present and multiple
-    deprecated options are present, the option corresponding to
-    the first element of deprecated_opts will be chosen.
+    options. So if we have a multi-value option "[group1]/opt1" whose
+    deprecated option is "[group2]/opt2", and the conf file has both these
+    options specified like so::
 
-    If group is None, the DeprecatedOpt lookup will happen within the same
-    group the new option is in. For example::
+        [group1]
+        opt1=val10,val11
 
-        oldopts = [cfg.DeprecatedOpt('oldfoo'),
-                   cfg.DeprecatedOpt('oldfoo2', group='DEFAULT')]
+        [group2]
+        opt2=val21,val22
 
-        cfg.CONF.register_group(cfg.OptGroup('blaa'))
-        cfg.CONF.register_opt(cfg.StrOpt('foo', deprecated_opts=oldopts),
-                              group='blaa')
-
-    In the example above, `oldfoo` will be looked up in the `blaa` group and
-    `oldfoo2` in the `DEFAULT` group.
+    Then the value of "[group1]/opt1" will be ['val11', 'val12', 'val21',
+    'val22'].
     """
 
     def __init__(self, name, group=None):
@@ -902,7 +920,11 @@ class DeprecatedOpt(object):
 
 
 class StrOpt(Opt):
-    """Option with String type (for backward compatibility).
+    """Option with String type
+
+    Option with ``type`` :class:`oslo_config.types.Integer`
+
+    `Kept for backward-compatibility with options not using Opt directly`.
 
     :param choices: Optional sequence of valid values.
     """
@@ -969,7 +991,12 @@ class BoolOpt(Opt):
 
 class IntOpt(Opt):
 
-    """Opt with Integer type (for backward compatibility)."""
+    """Option with Integer type
+
+    Option with ``type`` :class:`oslo_config.types.Integer`
+
+    `Kept for backward-compatibility with options not using Opt directly`.
+    """
 
     def __init__(self, name, **kwargs):
         super(IntOpt, self).__init__(name, type=types.Integer(), **kwargs)
@@ -977,7 +1004,12 @@ class IntOpt(Opt):
 
 class FloatOpt(Opt):
 
-    """Opt with Float type (for backward compatibility)."""
+    """Option with Float type
+
+    Option with ``type`` :class:`oslo_config.types.Float`
+
+    `Kept for backward-communicability with options not using Opt directly`.
+    """
 
     def __init__(self, name, **kwargs):
         super(FloatOpt, self).__init__(name, type=types.Float(), **kwargs)
@@ -985,7 +1017,12 @@ class FloatOpt(Opt):
 
 class ListOpt(Opt):
 
-    """Opt with List(String) type (for backward compatibility)."""
+    """Option with List(String) type
+
+    Option with ``type`` :class:`oslo_config.types.List`
+
+    `Kept for backward-compatibility with options not using Opt directly`.
+    """
 
     def __init__(self, name, **kwargs):
         super(ListOpt, self).__init__(name, type=types.List(), **kwargs)
@@ -993,7 +1030,12 @@ class ListOpt(Opt):
 
 class DictOpt(Opt):
 
-    """Opt with Dict(String) type (for backward compatibility)."""
+    """Option with Dict(String) type
+
+    Option with ``type`` :class:`oslo_config.types.Dict`
+
+    `Kept for backward-compatibility with options not using Opt directly`.
+    """
 
     def __init__(self, name, **kwargs):
         super(DictOpt, self).__init__(name, type=types.Dict(), **kwargs)
@@ -1001,7 +1043,13 @@ class DictOpt(Opt):
 
 class IPOpt(Opt):
 
-    """Opt with IPAddress type (either IPv4, IPv6 or both)."""
+    """Opt with IPAddress type
+
+    Option with ``type`` :class:`oslo_config.types.IPAddress`
+
+    :param version: one of either ``4``, ``6``, or ``None`` to specify
+       either version.
+    """
 
     def __init__(self, name, version=None, **kwargs):
         super(IPOpt, self).__init__(name, type=types.IPAddress(version),
@@ -1014,6 +1062,19 @@ class MultiOpt(Opt):
 
     Multi opt values are typed opts which may be specified multiple times.
     The opt value is a list containing all the values specified.
+
+    :param name: Name of the config option
+    :param item_type: Type of items (see :class:`oslo_config.types`)
+
+    For example::
+
+       cfg.MultiOpt('foo',
+                    item_type=types.Integer(),
+                    default=None,
+                    help="Multiple foo option")
+
+    The command line ``--foo=1 --foo=2`` would result in ``cfg.CONF.foo``
+    containing ``[1,2]``
     """
     multi = True
 
@@ -1032,7 +1093,15 @@ class MultiOpt(Opt):
 
 class MultiStrOpt(MultiOpt):
 
-    """Multi opt with MultiString item type (for backward compatibility)."""
+    """MultiOpt with a MultiString ``item_type``.
+
+    MultiOpt with a default :class:`oslo_config.types.MultiString` item
+    type.
+
+    `Kept for backwards-compatibility for options that do not use
+    MultiOpt directly`.
+
+    """
 
     def __init__(self, name, **kwargs):
         super(MultiStrOpt, self).__init__(name,
@@ -1347,9 +1416,13 @@ class ConfigParser(iniparser.BaseParser):
 
 
 class MultiConfigParser(object):
+    _deprecated_opt_message = ('Option "%s" from group "%s" is deprecated. '
+                               'Use option "%s" from group "%s".')
+
     def __init__(self):
         self.parsed = []
         self._normalized = []
+        self._emitted_deprecations = set()
 
     def read(self, config_files):
         read_ok = []
@@ -1401,6 +1474,8 @@ class MultiConfigParser(object):
                 if section not in sections:
                     continue
                 if name in sections[section]:
+                    self._check_deprecated((section, name), names[0],
+                                           names[1:])
                     val = sections[section][name]
                     if multi:
                         rvalue = val + rvalue
@@ -1409,6 +1484,32 @@ class MultiConfigParser(object):
         if multi and rvalue != []:
             return rvalue
         raise KeyError
+
+    def _check_deprecated(self, name, current, deprecated):
+        """Check for usage of deprecated names.
+
+        :param name: A tuple of the form (group, name) representing the group
+                     and name where an opt value was found.
+        :param current: A tuple of the form (group, name) representing the
+                        current name for an option.
+        :param deprecated: A list of tuples with the same format as the name
+                    param which represent any deprecated names for an option.
+                    If the name param matches any entries in this list a
+                    deprecation warning will be logged.
+        """
+        # Opts in the DEFAULT group may come in with a group name of either
+        # 'DEFAULT' or None.  Force them all to 'DEFAULT' since that's a more
+        # user-friendly form.
+        deprecated_names = set((g or 'DEFAULT', n) for (g, n) in deprecated)
+        name = (name[0] or 'DEFAULT', name[1])
+        if name in deprecated_names and name not in self._emitted_deprecations:
+            self._emitted_deprecations.add(name)
+            current = (current[0] or 'DEFAULT', current[1])
+            # NOTE(bnemec): Not using versionutils for this to avoid a
+            # circular dependency between oslo.config and whatever library
+            # versionutils ends up in.
+            LOG.warning(self._deprecated_opt_message, name[1],
+                        name[0], current[1], current[0])
 
 
 class _Namespace(argparse.Namespace):
@@ -1883,8 +1984,15 @@ class ConfigOpts(collections.Mapping):
         if self._args is not None:
             raise ArgsAlreadyParsedError("reset before unregistering options")
 
-        if {'opt': opt, 'group': group} in self._cli_opts:
-            self._cli_opts.remove({'opt': opt, 'group': group})
+        remitem = None
+        for item in self._cli_opts:
+            if (item['opt'].dest == opt.dest and
+                (group is None or
+                    self._get_group(group).name == item['group'].name)):
+                remitem = item
+                break
+        if remitem is not None:
+            self._cli_opts.remove(remitem)
 
         if group is not None:
             self._get_group(group)._unregister_opt(opt)
@@ -2362,6 +2470,16 @@ class ConfigOpts(collections.Mapping):
         else:
             self._namespace = namespace
             return True
+
+    def list_all_sections(self):
+        """List all sections from the configuration.
+
+        Returns an iterator over all section names found in the
+        configuration files, whether declared beforehand or not.
+        """
+        for sections in self._namespace._parser.parsed:
+            for section in sections:
+                yield section
 
     class GroupAttr(collections.Mapping):
 

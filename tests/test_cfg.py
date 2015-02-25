@@ -28,6 +28,7 @@ from six import moves
 import testscenarios
 
 from oslo.config import cfg
+from oslo.config import types
 
 load_tests = testscenarios.load_tests_apply_scenarios
 
@@ -273,6 +274,10 @@ class CliOptsTestCase(BaseTestCase):
     IPv4Opt = functools.partial(cfg.IPOpt, version=4)
     IPv6Opt = functools.partial(cfg.IPOpt, version=6)
 
+    multi_int = functools.partial(cfg.MultiOpt, item_type=types.Integer())
+    multi_float = functools.partial(cfg.MultiOpt, item_type=types.Float())
+    multi_string = functools.partial(cfg.MultiOpt, item_type=types.String())
+
     scenarios = [
         ('str_default',
          dict(opt_class=cfg.StrOpt, default=None, cli_args=[], value=None,
@@ -480,6 +485,18 @@ class CliOptsTestCase(BaseTestCase):
          dict(opt_class=cfg.MultiStrOpt, default=None,
               cli_args=['--old-oof', 'blaa', '--old-oof', 'bar'],
               value=['blaa', 'bar'], deps=('oof', 'old'))),
+        ('multiopt_arg_int',
+         dict(opt_class=multi_int, default=None,
+              cli_args=['--foo', '1', '--foo', '2'],
+              value=[1, 2], deps=(None, None))),
+        ('multiopt_float_int',
+         dict(opt_class=multi_float, default=None,
+              cli_args=['--foo', '1.2', '--foo', '2.3'],
+              value=[1.2, 2.3], deps=(None, None))),
+        ('multiopt_string',
+         dict(opt_class=multi_string, default=None,
+              cli_args=['--foo', 'bar', '--foo', 'baz'],
+              value=["bar", "baz"], deps=(None, None))),
     ]
 
     def test_cli(self):
@@ -653,20 +670,37 @@ class PositionalTestCase(BaseTestCase):
         command = cfg.StrOpt('command', positional=True)
         arg1 = cfg.StrOpt('arg1', positional=True)
         arg2 = cfg.StrOpt('arg2', positional=True)
+        cfg.CONF.register_group(cfg.OptGroup('blaa'))
         self.conf.register_cli_opt(command)
         self.conf.register_cli_opt(arg1)
-        self.conf.register_cli_opt(arg2)
+        self.conf.register_cli_opt(arg2, group='blaa')
+
+        self.assertEqual(3, len(self.conf._cli_opts))
+        self.assertEqual(1, len(self.conf._groups))
+
+        self.assertEqual('command', self.conf._cli_opts[0]['opt'].dest)
+        self.assertEqual('arg1', self.conf._cli_opts[1]['opt'].dest)
+        self.assertEqual('arg2', self.conf._cli_opts[2]['opt'].dest)
+        self.assertEqual('blaa', self.conf._cli_opts[2]['group'].name)
 
         self.conf(['command', 'arg1', 'arg2'])
 
-        self.assertEqual('command', self.conf.command)
-        self.assertEqual('arg1', self.conf.arg1)
-        self.assertEqual('arg2', self.conf.arg2)
-
         self.conf.reset()
 
-        self.conf.unregister_opt(arg1)
-        self.conf.unregister_opt(arg2)
+        new_arg1 = cfg.StrOpt('arg1', positional=True)
+        new_arg2 = cfg.StrOpt('arg2', positional=True)
+
+        self.conf.unregister_opt(new_arg1)
+        self.assertEqual(2, len(self.conf._cli_opts))
+
+        self.assertRaises(cfg.NoSuchGroupError,
+                          self.conf.unregister_opt,
+                          new_arg2,
+                          group='foo')
+        self.conf.unregister_opt(new_arg2, group='blaa')
+        self.assertEqual(1, len(self.conf._cli_opts))
+        self.assertEqual('command',
+                         self.conf._cli_opts[0]['opt'].dest)
 
         arg0 = cfg.StrOpt('arg0', positional=True)
         self.conf.register_cli_opt(arg0)
@@ -674,9 +708,11 @@ class PositionalTestCase(BaseTestCase):
 
         self.conf(['command', 'arg0', 'arg1'])
 
-        self.assertEqual('command', self.conf.command)
-        self.assertEqual('arg0', self.conf.arg0)
-        self.assertEqual('arg1', self.conf.arg1)
+        self.conf.reset()
+
+        self.assertEqual('command', self.conf._cli_opts[0]['opt'].dest)
+        self.assertEqual('arg0', self.conf._cli_opts[1]['opt'].dest)
+        self.assertEqual('arg1', self.conf._cli_opts[2]['opt'].dest)
 
 
 class ConfigFileOptsTestCase(BaseTestCase):
