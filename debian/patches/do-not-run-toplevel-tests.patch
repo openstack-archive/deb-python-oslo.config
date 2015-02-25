@@ -1,0 +1,14 @@
+Description: Do not run toplevel tests
+ We don't want to run toplevel tests which breaks using the namespace.
+Author: Thomas Goirand <zigo@debian.org>
+Forwarded: not-needed
+Last-Update: 2015-02-25
+
+--- oslo-config-1.7.0.orig/.testr.conf
++++ oslo-config-1.7.0/.testr.conf
+@@ -1,4 +1,4 @@
+ [DEFAULT]
+-test_command=OS_STDOUT_CAPTURE=1 OS_STDERR_CAPTURE=1 OS_TEST_TIMEOUT=60 ${PYTHON:-python} -m subunit.run discover -t ./ . $LISTOPT $IDOPTION
++test_command=OS_STDOUT_CAPTURE=1 OS_STDERR_CAPTURE=1 OS_TEST_TIMEOUT=60 ${PYTHON:-python} -m subunit.run discover -t ./ ./oslo_config $LISTOPT $IDOPTION
+ test_id_option=--load-list $IDFILE
+ test_list_option=--list
