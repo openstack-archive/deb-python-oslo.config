@@ -22,9 +22,10 @@ Build-Depends-Indep: python-coverage (>= 3.6),
                      python-mimeparse,
                      python-mock (>= 1.0),
                      python-netaddr (>= 0.7.12),
+                     python-oslo.i18n (>= 1.3.0),
                      python-oslosphinx (>= 2.2.0.0~a2),
                      python-oslotest (>= 1.1.0.0~a1),
-                     python-six (>= 1.7.0),
+                     python-six (>= 1.9.0),
                      python-stevedore (>= 0.14),
                      python-subunit (>= 0.0.18),
                      python-testscenarios (>= 0.4),
@@ -32,8 +33,9 @@ Build-Depends-Indep: python-coverage (>= 3.6),
                      python3-mimeparse,
                      python3-mock (>= 1.0),
                      python3-netaddr (>= 0.7.12),
+                     python3-oslo.i18n (>= 1.3.0),
                      python3-oslotest,
-                     python3-six (>= 1.7.0),
+                     python3-six (>= 1.9.0),
                      python3-stevedore (>= 0.14),
                      python3-subunit (>= 0.0.18),
                      python3-testscenarios (>= 0.4),
@@ -42,12 +44,10 @@ Build-Depends-Indep: python-coverage (>= 3.6),
                      testrepository (>= 0.0.18)
 Build-Conflicts: python-oslo.config,
                  python-oslo.db,
-                 python-oslo.i18n,
                  python-oslo.messaging,
                  python-oslo.rootwrap,
                  python-oslo.vmware,
                  python3-oslo.config,
-                 python3-oslo.i18n,
                  python3-oslo.rootwrap
 Standards-Version: 3.9.5
 Vcs-Browser: http://anonscm.debian.org/gitweb/?p=openstack/oslo-config.git
@@ -59,7 +59,7 @@ Architecture: all
 Pre-Depends: dpkg (>= 1.15.6~)
 Depends: python-pbr,
          python-netaddr (>= 0.7.12),
-         python-six (>= 1.7.0),
+         python-six (>= 1.9.0),
          python-stevedore (>= 1.1.0),
          ${misc:Depends},
          ${python:Depends}
@@ -78,7 +78,7 @@ Architecture: all
 Pre-Depends: dpkg (>= 1.15.6~)
 Depends: python3-pbr,
          python3-netaddr (>= 0.7.12),
-         python3-six (>= 1.7.0),
+         python3-six (>= 1.9.0),
          python3-stevedore (>= 1.1.0),
          ${misc:Depends},
          ${python3:Depends}
