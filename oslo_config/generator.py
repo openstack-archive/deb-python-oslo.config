@@ -109,6 +109,7 @@ import sys
 import textwrap
 
 import pkg_resources
+import six
 
 from oslo.config import cfg
 import stevedore.named  # noqa
@@ -176,6 +177,13 @@ class _OptFormatter(object):
             lines = ['# ' + help_text + '\n']
         return lines
 
+    def _get_choice_text(self, choice):
+        if choice is None:
+            return '<None>'
+        elif choice == '':
+            return "''"
+        return six.text_type(choice)
+
     def format(self, opt):
         """Format a description of an option to the output file.
 
@@ -192,6 +200,11 @@ class _OptFormatter(object):
         else:
             help_text = u'(%s)' % opt_type
         lines = self._format_help(help_text)
+
+        if getattr(opt.type, 'choices', None):
+            choices_text = ', '.join([self._get_choice_text(choice)
+                                      for choice in opt.type.choices])
+            lines.append('# Allowed values: %s\n' % choices_text)
 
         for d in opt.deprecated_opts:
             lines.append('# Deprecated group/name - [%s]/%s\n' %
@@ -257,10 +270,16 @@ def _list_opts(namespaces):
     :param namespaces: a list of namespaces registered under 'oslo.config.opts'
     :returns: a list of (namespace, [(group, [opt_1, opt_2])]) tuples
     """
-    mgr = stevedore.named.NamedExtensionManager('oslo.config.opts',
-                                                names=namespaces,
-                                                invoke_on_load=True)
+    mgr = stevedore.named.NamedExtensionManager(
+        'oslo.config.opts',
+        names=namespaces,
+        on_load_failure_callback=on_load_failure_callback,
+        invoke_on_load=True)
     return [(ep.name, ep.obj) for ep in mgr]
+
+
+def on_load_failure_callback(*args, **kwargs):
+    raise
 
 
 def generate(conf):

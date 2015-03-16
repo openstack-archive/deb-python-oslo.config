@@ -3479,6 +3479,29 @@ class ChoicesTestCase(BaseTestCase):
         self.assertTrue(hasattr(self.conf, 'foo'))
         self.assertEqual(self.conf.foo, 'bar1')
 
+    def test_conf_file_choice_empty_value(self):
+        self.conf.register_opt(cfg.StrOpt('foo',
+                               choices=['', 'bar1', 'bar2']))
+
+        paths = self.create_tempfiles([('test', '[DEFAULT]\n''foo = \n')])
+
+        self.conf(['--config-file', paths[0]])
+
+        self.assertTrue(hasattr(self.conf, 'foo'))
+        self.assertEqual(self.conf.foo, '')
+
+    def test_conf_file_choice_none_value(self):
+        self.conf.register_opt(cfg.StrOpt('foo',
+                               default=None,
+                               choices=[None, 'bar1', 'bar2']))
+
+        paths = self.create_tempfiles([('test', '[DEFAULT]\n''\n')])
+
+        self.conf(['--config-file', paths[0]])
+
+        self.assertTrue(hasattr(self.conf, 'foo'))
+        self.assertEqual(self.conf.foo, None)
+
     def test_conf_file_bad_choice_value(self):
         self.conf.register_opt(cfg.StrOpt('foo',
                                choices=['bar1', 'bar2']))
@@ -3660,3 +3683,44 @@ class DeprecationWarningTests(DeprecationWarningTestBase):
                      current_name, current_group)
                     )
         self.assertEqual(expected + '\n', self.log_fixture.output)
+
+    def test_deprecated_for_removal(self):
+        self.conf.register_opt(cfg.StrOpt('foo',
+                                          deprecated_for_removal=True))
+        self.conf.register_opt(cfg.StrOpt('bar',
+                                          deprecated_for_removal=True))
+        paths = self.create_tempfiles([('test',
+                                        '[DEFAULT]\n' +
+                                        'foo=bar\n')])
+        self.conf(['--config-file', paths[0]])
+        # Multiple references should be logged only once.
+        self.assertEqual('bar', self.conf.foo)
+        self.assertEqual('bar', self.conf.foo)
+        # Options not set in the config should not be logged.
+        self.assertEqual(None, self.conf.bar)
+        expected = ('Option "foo" from group "DEFAULT" is deprecated for '
+                    'removal.  Its value may be silently ignored in the '
+                    'future.\n')
+        self.assertEqual(expected, self.log_fixture.output)
+
+    def test_deprecated_for_removal_with_group(self):
+        self.conf.register_group(cfg.OptGroup('other'))
+        self.conf.register_opt(cfg.StrOpt('foo',
+                                          deprecated_for_removal=True),
+                               group='other')
+        self.conf.register_opt(cfg.StrOpt('bar',
+                                          deprecated_for_removal=True),
+                               group='other')
+        paths = self.create_tempfiles([('test',
+                                        '[other]\n' +
+                                        'foo=bar\n')])
+        self.conf(['--config-file', paths[0]])
+        # Multiple references should be logged only once.
+        self.assertEqual('bar', self.conf.other.foo)
+        self.assertEqual('bar', self.conf.other.foo)
+        # Options not set in the config should not be logged.
+        self.assertEqual(None, self.conf.other.bar)
+        expected = ('Option "foo" from group "other" is deprecated for '
+                    'removal.  Its value may be silently ignored in the '
+                    'future.\n')
+        self.assertEqual(expected, self.log_fixture.output)

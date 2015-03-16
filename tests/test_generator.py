@@ -52,6 +52,10 @@ class GeneratorTestCase(base.BaseTestCase):
                                      'cupidatat non proident, sunt in culpa '
                                      'qui officia deserunt mollit anim id est '
                                      'laborum.'),
+        'choices_opt': cfg.StrOpt('choices_opt',
+                                  default='a',
+                                  choices=(None, '', 'a', 'b', 'c'),
+                                  help='a string with choices'),
         'deprecated_opt': cfg.StrOpt('bar',
                                      deprecated_name='foobar',
                                      help='deprecated'),
@@ -295,6 +299,18 @@ class GeneratorTestCase(base.BaseTestCase):
 '(string value)'
 '''
 #long_help = <None>
+''')),
+        ('choices_opt',
+         dict(opts=[('test', [(None, [opts['choices_opt']])])],
+              expected='''[DEFAULT]
+
+#
+# From test
+#
+
+# a string with choices (string value)
+# Allowed values: <None>, '', a, b, c
+#choices_opt = a
 ''')),
         ('deprecated',
          dict(opts=[('test', [('foo', [opts['deprecated_opt']])])],
@@ -540,9 +556,11 @@ class GeneratorTestCase(base.BaseTestCase):
             content = open(output_file).read()
             self.assertEqual(self.expected, content)
 
-        named_mgr.assert_called_once_with('oslo.config.opts',
-                                          names=namespaces,
-                                          invoke_on_load=True)
+        named_mgr.assert_called_once_with(
+            'oslo.config.opts',
+            names=namespaces,
+            on_load_failure_callback=generator.on_load_failure_callback,
+            invoke_on_load=True)
 
         log_warning = getattr(self, 'log_warning', None)
         if log_warning is not None:
