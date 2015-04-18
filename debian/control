@@ -5,50 +5,42 @@ Maintainer: PKG OpenStack <openstack-devel@lists.alioth.debian.org>
 Uploaders: Julien Danjou <acid@debian.org>,
            Thomas Goirand <zigo@debian.org>,
            Ghe Rivero <ghe.rivero@stackops.com>,
-           Mehdi Abaakouk <sileht@sileht.net>
+           Mehdi Abaakouk <sileht@sileht.net>,
 Build-Depends: debhelper (>= 9),
                dh-python,
                openstack-pkg-tools,
                python-all (>= 2.6.6-3~),
                python-pbr,
-               python-setuptools,
                python-sphinx,
                python3-all (>= 3.2),
                python3-pbr,
-               python3-setuptools
-Build-Depends-Indep: python-coverage (>= 3.6),
-                     python-fixtures (>= 0.3.14),
-                     python-hacking (>= 0.8.0),
+               python3-setuptools,
+Build-Depends-Indep: python-coverage,
+                     python-fixtures,
+                     python-hacking,
                      python-mimeparse,
-                     python-mock (>= 1.0),
-                     python-netaddr (>= 0.7.12),
+                     python-mock,
+                     python-netaddr,
                      python-oslo.i18n (>= 1.3.0),
-                     python-oslosphinx (>= 2.2.0.0~a2),
-                     python-oslotest (>= 1.1.0.0~a1),
+                     python-oslosphinx (>= 2.2.0.0),
+                     python-oslotest (>= 1.2.0),
                      python-six (>= 1.9.0),
-                     python-stevedore (>= 0.14),
-                     python-subunit (>= 0.0.18),
-                     python-testscenarios (>= 0.4),
-                     python-testtools (>= 0.9.34),
+                     python-stevedore (>= 1.1.0),
+                     python-testscenarios,
+                     python-testtools,
+                     python3-fixtures,
                      python3-mimeparse,
                      python3-mock (>= 1.0),
                      python3-netaddr (>= 0.7.12),
                      python3-oslo.i18n (>= 1.3.0),
-                     python3-oslotest,
+                     python3-oslotest (>= 1.2.0),
                      python3-six (>= 1.9.0),
-                     python3-stevedore (>= 0.14),
+                     python3-stevedore (>= 1.1.0),
                      python3-subunit (>= 0.0.18),
-                     python3-testscenarios (>= 0.4),
-                     python3-testtools (>= 0.9.34),
-                     subunit (>= 0.0.18),
-                     testrepository (>= 0.0.18)
-Build-Conflicts: python-oslo.config,
-                 python-oslo.db,
-                 python-oslo.messaging,
-                 python-oslo.rootwrap,
-                 python-oslo.vmware,
-                 python3-oslo.config,
-                 python3-oslo.rootwrap
+                     python3-testscenarios,
+                     python3-testtools,
+                     subunit,
+                     testrepository,
 Standards-Version: 3.9.6
 Vcs-Browser: http://anonscm.debian.org/gitweb/?p=openstack/oslo-config.git
 Vcs-Git: git://anonscm.debian.org/openstack/oslo-config.git
@@ -57,12 +49,12 @@ Homepage: https://github.com/openstack/oslo-incubator
 Package: python-oslo.config
 Architecture: all
 Pre-Depends: dpkg (>= 1.15.6~)
-Depends: python-pbr,
-         python-netaddr (>= 0.7.12),
+Depends: python-netaddr,
+         python-pbr,
          python-six (>= 1.9.0),
          python-stevedore (>= 1.1.0),
          ${misc:Depends},
-         ${python:Depends}
+         ${python:Depends},
 Provides: python-oslo-config
 Description: Common code for Openstack Projects (configuration API) - Python 2.x
  The OpenStack Oslo project provides Python libraries containing
@@ -76,12 +68,12 @@ Description: Common code for Openstack Projects (configuration API) - Python 2.x
 Package: python3-oslo.config
 Architecture: all
 Pre-Depends: dpkg (>= 1.15.6~)
-Depends: python3-pbr,
-         python3-netaddr (>= 0.7.12),
+Depends: python3-netaddr,
+         python3-pbr,
          python3-six (>= 1.9.0),
          python3-stevedore (>= 1.1.0),
          ${misc:Depends},
-         ${python3:Depends}
+         ${python3:Depends},
 Description: Common code for Openstack Projects (configuration API) - Python 3.x
  The OpenStack Oslo project provides Python libraries containing
  infrastructure code shared by OpenStack projects.
