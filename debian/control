@@ -1,4 +1,4 @@
-Source: oslo-config
+Source: python-oslo.config
 Section: python
 Priority: optional
 Maintainer: PKG OpenStack <openstack-devel@lists.alioth.debian.org>
@@ -43,9 +43,9 @@ Build-Depends-Indep: python-coverage,
                      subunit,
                      testrepository,
 Standards-Version: 3.9.6
-Vcs-Browser: http://anonscm.debian.org/gitweb/?p=openstack/oslo-config.git
-Vcs-Git: git://anonscm.debian.org/openstack/oslo-config.git
-Homepage: https://github.com/openstack/oslo-incubator
+Vcs-Browser: http://anonscm.debian.org/gitweb/?p=openstack/python-oslo.config.git
+Vcs-Git: git://anonscm.debian.org/openstack/python-oslo.config.git
+Homepage: https://github.com/openstack/oslo.config
 
 Package: python-oslo.config
 Architecture: all

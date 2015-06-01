@@ -1,4 +1,4 @@
-oslo-config (1:1.11.0-1) UNRELEASED; urgency=medium
+python-oslo.config (1:1.11.0-1) UNRELEASED; urgency=medium
 
   * New upstream release:
     - d/control: Align version requirements with upstream.
@@ -6,6 +6,7 @@ oslo-config (1:1.11.0-1) UNRELEASED; urgency=medium
     - d/control: Add Breaks/Replaces for Ubuntu *oslo-config binaries.
     - d/control: Add transitional packages for *oslo-config binaries
       in Ubuntu.
+  * Rename source package to python-oslo.config.
 
  -- James Page <james.page@ubuntu.com>  Wed, 27 May 2015 15:32:29 +0100
 
