@@ -1431,6 +1431,20 @@ class ConfigFileOptsTestCase(BaseTestCase):
         self.assertTrue(hasattr(self.conf, 'foo'))
         self.assertEqual(self.conf.foo, 'bar-%08x')
 
+    def test_conf_file_sorted_group(self):
+        # Create enough groups for the sorted problem to appear
+        for i in range(10):
+            group = cfg.OptGroup('group%s' % i, 'options')
+            self.conf.register_group(group)
+            self.conf.register_cli_opt(cfg.StrOpt('opt1'), group=group)
+
+        paths = self.create_tempfiles(
+            [('test', '[group1]\nopt1 = foo\n[group2]\nopt2 = bar\n')])
+
+        self.conf(['--config-file', paths[0]])
+
+        self.assertEqual(self.conf.group1.opt1, 'foo')
+
 
 class ConfigFileReloadTestCase(BaseTestCase):
 
@@ -2824,11 +2838,18 @@ class SadPathTestCase(BaseTestCase):
 
         self.conf([])
 
-        self.assertFalse(hasattr(self.conf, 'bar'))
-        self.assertRaises(
-            AttributeError, getattr, self.conf, 'bar')
-        self.assertRaises(
-            cfg.TemplateSubstitutionError, self.conf._get, 'bar')
+        self.assertTrue(hasattr(self.conf, 'bar'))
+        self.assertEqual("blaa", self.conf.bar)
+
+    def test_str_sub_from_group_with_brace(self):
+        self.conf.register_group(cfg.OptGroup('f'))
+        self.conf.register_cli_opt(cfg.StrOpt('oo', default='blaa'), group='f')
+        self.conf.register_cli_opt(cfg.StrOpt('bar', default='${f.oo}'))
+
+        self.conf([])
+
+        self.assertTrue(hasattr(self.conf, 'bar'))
+        self.assertEqual("blaa", self.conf.bar)
 
     def test_set_default_unknown_attr(self):
         self.conf([])
@@ -3723,4 +3744,20 @@ class DeprecationWarningTests(DeprecationWarningTestBase):
         expected = ('Option "foo" from group "other" is deprecated for '
                     'removal.  Its value may be silently ignored in the '
                     'future.\n')
+        self.assertEqual(expected, self.log_fixture.output)
+
+    def test_deprecated_with_dest(self):
+        self.conf.register_group(cfg.OptGroup('other'))
+        self.conf.register_opt(cfg.StrOpt('foo-bar', deprecated_name='bar',
+                                          dest='foo'),
+                               group='other')
+        content = 'bar=baz'
+        paths = self.create_tempfiles([('test',
+                                        '[other]\n' +
+                                        content + '\n')])
+
+        self.conf(['--config-file', paths[0]])
+        self.assertEqual('baz', self.conf.other.foo)
+        expected = (self._parser_class._deprecated_opt_message %
+                    ('bar', 'other', 'foo-bar', 'other') + '\n')
         self.assertEqual(expected, self.log_fixture.output)

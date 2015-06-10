@@ -143,6 +143,9 @@ Option values in config files and those on the command line are parsed
 in order. The same option can appear many times, in config files or on
 the command line. Later values always override earlier ones.
 
+The order of configuration files inside the same configuration directory is
+defined by the alphabetic sorting order of their file names.
+
 The parsing of CLI args and config files is initiated by invoking the config
 manager for example::
 
@@ -237,12 +240,10 @@ Option values may reference other values using PEP 292 string substitution::
 
   Interpolation can be avoided by using `$$`.
 
-.. warning::
+.. note::
 
-  Interpolation using the values of options in groups is not yet
-  supported. The interpolated option must be in the DEFAULT group
-  (i.e., ``"$state_path"`` works but ``"$database.state_path"`` does
-  not).
+  You can use `.` to delimit option from other groups, e.g.
+  ${mygroup.myoption}.
 
 Special Handling Instructions
 -----------------------------
@@ -615,25 +616,42 @@ class Opt(object):
 
     An Opt object has no public methods, but has a number of public properties:
 
-      name:
+    .. py:attribute:: name
+
         the name of the option, which may include hyphens
-      type:
+
+    .. py:attribute:: type
+
         a callable object that takes string and returns converted and
         validated value.  Default types are available from
         :class:`oslo_config.types`
-      dest:
+
+    .. py:attribute:: dest
+
         the (hyphen-less) ConfigOpts property which contains the option value
-      short:
+
+    .. py:attribute:: short
+
         a single character CLI option name
-      default:
+
+    .. py:attribute:: default
+
         the default value of the option
-      sample_default:
+
+    .. py:attribute:: sample_default
+
         a sample default value string to include in sample config files
-      positional:
+
+    .. py:attribute:: positional
+
         True if the option is a positional CLI argument
-      metavar:
+
+    .. py:attribute:: metavar
+
         the name shown as the argument to a CLI option in --help output
-      help:
+
+    .. py:attribute:: help
+
         a string explaining how the option's value is used
     """
     multi = False
@@ -714,6 +732,7 @@ class Opt(object):
         :param group_name: a group name
         """
         names = [(group_name, self.dest)]
+        current_name = (group_name, self.name)
 
         for opt in self.deprecated_opts:
             dname, dgroup = opt.name, opt.group
@@ -721,7 +740,8 @@ class Opt(object):
                 names.append((dgroup if dgroup else group_name,
                               dname if dname else self.dest))
 
-        value = namespace._get_value(names, self.multi, self.positional)
+        value = namespace._get_value(names, self.multi, self.positional,
+                                     current_name)
         # The previous line will raise a KeyError if no value is set in the
         # config file, so we'll only log deprecations for set options.
         if self.deprecated_for_removal and not self._logged_deprecation:
@@ -1286,11 +1306,16 @@ class OptGroup(object):
     An OptGroup object has no public methods, but has a number of public string
     properties:
 
-      name:
+    .. py:attribute:: name
+
         the name of the group
-      title:
+
+    .. py:attribute:: title
+
         the group title as displayed in --help
-      help:
+
+    .. py:attribute:: help
+
         the group description as displayed in --help
     """
 
@@ -1466,7 +1491,7 @@ class MultiConfigParser(object):
     def get(self, names, multi=False):
         return self._get(names, multi=multi)
 
-    def _get(self, names, multi=False, normalized=False):
+    def _get(self, names, multi=False, normalized=False, current_name=None):
         """Fetch a config file value from the parsed files.
 
         :param names: a list of (section, name) tuples
@@ -1485,7 +1510,8 @@ class MultiConfigParser(object):
                 if section not in sections:
                     continue
                 if name in sections[section]:
-                    self._check_deprecated((section, name), names[0],
+                    current_name = current_name or names[0]
+                    self._check_deprecated((section, name), current_name,
                                            names[1:])
                     val = sections[section][name]
                     if multi:
@@ -1569,14 +1595,16 @@ class _Namespace(argparse.Namespace):
         namespace = _Namespace(self._conf)
         namespace._parser._add_parsed_config_file(sections, normalized)
 
-        for opt, group in sorted(self._conf._all_cli_opts()):
+        for opt, group in self._conf._all_cli_opts():
             group_name = group.name if group is not None else None
             try:
                 value = opt._get_from_namespace(namespace, group_name)
             except KeyError:
                 continue
             except ValueError as ve:
-                raise ConfigFileValueError(str(ve))
+                raise ConfigFileValueError(
+                    "Value for option %s is not valid: %s"
+                    % (opt.name, str(ve)))
 
             if group_name is None:
                 dest = opt.dest
@@ -1638,7 +1666,7 @@ class _Namespace(argparse.Namespace):
 
         raise KeyError
 
-    def _get_value(self, names, multi, positional):
+    def _get_value(self, names, multi, positional, current_name):
         """Fetch a value from config files.
 
         Multiple names for a given configuration option may be supplied so
@@ -1655,7 +1683,8 @@ class _Namespace(argparse.Namespace):
             pass
 
         names = [(g if g is not None else 'DEFAULT', n) for g, n in names]
-        values = self._parser._get(names, multi=multi, normalized=True)
+        values = self._parser._get(names, multi=multi, normalized=True,
+                                   current_name=current_name)
         return values if multi else values[-1]
 
 
@@ -2273,7 +2302,9 @@ class ConfigOpts(collections.Mapping):
             except KeyError:
                 pass
             except ValueError as ve:
-                raise ConfigFileValueError(str(ve))
+                raise ConfigFileValueError(
+                    "Value for option %s is not valid: %s"
+                    % (opt.name, str(ve)))
 
         if 'default' in info:
             return self._substitute(info['default'])
@@ -2313,12 +2344,15 @@ class ConfigOpts(collections.Mapping):
             # a bit more natural for users
             if '\$' in value:
                 value = value.replace('\$', '$$')
-            tmpl = string.Template(value)
+            tmpl = self.Template(value)
             ret = tmpl.safe_substitute(
                 self.StrSubWrapper(self, group=group, namespace=namespace))
             return ret
         else:
             return value
+
+    class Template(string.Template):
+        idpattern = r'[_a-z][\._a-z0-9]*'
 
     def _convert_value(self, value, opt):
         """Perform value type conversion.
@@ -2584,10 +2618,16 @@ class ConfigOpts(collections.Mapping):
 
             :param key: an opt name
             :returns: an opt value
-            :raises: TemplateSubstitutionError if attribute is a group
             """
             try:
-                value = self.conf._get(key, group=self.group,
+                group_name, option = key.split(".", 1)
+            except ValueError:
+                group = self.group
+                option = key
+            else:
+                group = OptGroup(name=group_name)
+            try:
+                value = self.conf._get(option, group=group,
                                        namespace=self.namespace)
             except NoSuchOptError:
                 value = self.conf._get(key, namespace=self.namespace)
