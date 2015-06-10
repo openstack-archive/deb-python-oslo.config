@@ -2,6 +2,7 @@ python-oslo.config (1:1.12.1-1) UNRELEASED; urgency=medium
 
   * Team Upload.
   * New upstream release.
+  * Update watch file to use pypi.debian.net.
 
  -- James Page <jamespage@debian.org>  Wed, 10 Jun 2015 11:15:25 +0100
 
