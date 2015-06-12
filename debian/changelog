@@ -1,3 +1,10 @@
+python-oslo.config (1:1.12.1-2) UNRELEASED; urgency=medium
+
+  * Made build reproducible, thanks to Juan Picca <jumapico@gmail.com>
+    (Closes: #788479).
+
+ -- Thomas Goirand <zigo@debian.org>  Fri, 12 Jun 2015 15:17:18 +0200
+
 python-oslo.config (1:1.12.1-1) experimental; urgency=medium
 
   * Team Upload.
