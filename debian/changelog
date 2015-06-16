@@ -1,16 +1,14 @@
 python-oslo.config (1:1.12.1-3) experimental; urgency=medium
 
+  [ James Page ]
   * Team upload.
   * d/control: Fixup errant , in Uploaders field.
 
- -- James Page <james.page@ubuntu.com>  Mon, 15 Jun 2015 08:41:12 +0100
-
-python-oslo.config (1:1.12.1-2) UNRELEASED; urgency=medium
-
+  [ Thomas Goirand ]
   * Made build reproducible, thanks to Juan Picca <jumapico@gmail.com>
     (Closes: #788479).
 
- -- Thomas Goirand <zigo@debian.org>  Fri, 12 Jun 2015 15:17:18 +0200
+ -- James Page <james.page@ubuntu.com>  Mon, 15 Jun 2015 08:41:12 +0100
 
 python-oslo.config (1:1.12.1-1) experimental; urgency=medium
 
