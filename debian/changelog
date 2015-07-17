@@ -1,8 +1,10 @@
 python-oslo.config (1:1.12.1-4) UNRELEASED; urgency=medium
 
   * Fixup typo in transitional package description (LP: #1471561).
+  * d/p/fixtures-1.3-compat.patch: Cherry pick fix from upstream VCS to
+    resolve compatibility with fixtures >= 1.3.1.
 
- -- James Page <james.page@ubuntu.com>  Thu, 09 Jul 2015 10:42:33 +0100
+ -- James Page <james.page@ubuntu.com>  Fri, 17 Jul 2015 10:08:45 +0100
 
 python-oslo.config (1:1.12.1-3) experimental; urgency=medium
 
