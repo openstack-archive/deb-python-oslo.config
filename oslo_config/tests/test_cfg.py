@@ -146,8 +146,8 @@ class HelpTestCase(BaseTestCase):
 
     def test_print_sorted_help(self):
         f = moves.StringIO()
-        self.conf.register_cli_opt(cfg.StrOpt('zba'))
         self.conf.register_cli_opt(cfg.StrOpt('abc'))
+        self.conf.register_cli_opt(cfg.StrOpt('zba'))
         self.conf.register_cli_opt(cfg.StrOpt('ghi'))
         self.conf.register_cli_opt(cfg.StrOpt('deb'))
         self.conf([])
@@ -157,6 +157,20 @@ class HelpTestCase(BaseTestCase):
         ghi = f.getvalue().find('--ghi')
         deb = f.getvalue().find('--deb')
         list = [abc, deb, ghi, zba]
+        self.assertEqual(sorted(list), list)
+
+    def test_print_sorted_help_with_positionals(self):
+        f = moves.StringIO()
+        self.conf.register_cli_opt(cfg.StrOpt('pst', positional=True))
+        self.conf.register_cli_opt(cfg.StrOpt('abc'))
+        self.conf.register_cli_opt(cfg.StrOpt('zba'))
+        self.conf.register_cli_opt(cfg.StrOpt('ghi'))
+        self.conf([])
+        self.conf.print_help(file=f)
+        zba = f.getvalue().find('--zba')
+        abc = f.getvalue().find('--abc')
+        ghi = f.getvalue().find('--ghi')
+        list = [abc, ghi, zba]
         self.assertEqual(sorted(list), list)
 
 
@@ -932,7 +946,7 @@ class ConfigFileOptsTestCase(BaseTestCase):
     @mock.patch.object(cfg, 'LOG')
     def test_conf_file_int_wrong_default(self, mock_log):
         cfg.IntOpt('foo', default='666')
-        mock_log.debug.assert_call_count(1)
+        self.assertEqual(1, mock_log.debug.call_count)
 
     def test_conf_file_int_value(self):
         self.conf.register_opt(cfg.IntOpt('foo'))
@@ -962,6 +976,19 @@ class ConfigFileOptsTestCase(BaseTestCase):
 
         self.assertTrue(hasattr(self.conf, 'foo'))
         self.assertEqual(self.conf.foo, 666)
+
+    def test_conf_file_int_min_max(self):
+        self.conf.register_opt(cfg.IntOpt('foo', min=1, max=5))
+
+        paths = self.create_tempfiles([('test',
+                                        '[DEFAULT]\n'
+                                        'foo = 10\n')])
+
+        self.conf(['--config-file', paths[0]])
+        self.assertRaises(cfg.ConfigFileValueError, self.conf._get, 'foo')
+
+    def test_conf_file_int_min_greater_max(self):
+        self.assertRaises(ValueError, cfg.IntOpt, 'foo', min=5, max=1)
 
     def test_conf_file_int_use_dname(self):
         self._do_dname_test_use(cfg.IntOpt, '66', 66)
@@ -998,7 +1025,7 @@ class ConfigFileOptsTestCase(BaseTestCase):
     @mock.patch.object(cfg, 'LOG')
     def test_conf_file_float_default_wrong_type(self, mock_log):
         cfg.FloatOpt('foo', default='foobar6.66')
-        mock_log.debug.assert_call_count(1)
+        self.assertEqual(1, mock_log.debug.call_count)
 
     def test_conf_file_float_value(self):
         self.conf.register_opt(cfg.FloatOpt('foo'))
@@ -2486,6 +2513,37 @@ class OverridesTestCase(BaseTestCase):
         self.conf.clear_override('foo')
         self.assertIsNone(self.conf.foo)
 
+    def test_enforce_type_str_override(self):
+        self.conf.register_opt(cfg.StrOpt('foo'))
+        self.conf.set_override('foo', True, enforce_type=True)
+        self.conf([])
+        self.assertEqual(self.conf.foo, 'True')
+        self.conf.clear_override('foo')
+        self.assertIsNone(self.conf.foo)
+
+    def test_set_override_in_choices(self):
+        self.conf.register_group(cfg.OptGroup('f'))
+        self.conf.register_cli_opt(cfg.StrOpt('oo', choices=('a', 'b')),
+                                   group='f')
+        self.conf.set_override('oo', 'b', 'f', enforce_type=True)
+        self.assertEqual('b', self.conf.f.oo)
+
+    def test_set_override_not_in_choices(self):
+        self.conf.register_group(cfg.OptGroup('f'))
+        self.conf.register_cli_opt(cfg.StrOpt('oo', choices=('a', 'b')),
+                                   group='f')
+        self.assertRaises(ValueError,
+                          self.conf.set_override, 'oo', 'c', 'f',
+                          enforce_type=True)
+
+    def test_enforce_type_bool_override(self):
+        self.conf.register_opt(cfg.BoolOpt('foo'))
+        self.conf.set_override('foo', 'True', enforce_type=True)
+        self.conf([])
+        self.assertEqual(self.conf.foo, True)
+        self.conf.clear_override('foo')
+        self.assertIsNone(self.conf.foo)
+
 
 class ResetAndClearTestCase(BaseTestCase):
 
@@ -2572,43 +2630,45 @@ class ImportOptTestCase(BaseTestCase):
 
     def test_import_opt(self):
         self.assertFalse(hasattr(cfg.CONF, 'blaa'))
-        cfg.CONF.import_opt('blaa', 'tests.testmods.blaa_opt')
+        cfg.CONF.import_opt('blaa', 'oslo_config.tests.testmods.blaa_opt')
         self.assertTrue(hasattr(cfg.CONF, 'blaa'))
 
     def test_import_opt_in_group(self):
         self.assertFalse(hasattr(cfg.CONF, 'bar'))
-        cfg.CONF.import_opt('foo', 'tests.testmods.bar_foo_opt', group='bar')
+        cfg.CONF.import_opt('foo', 'oslo_config.tests.testmods.bar_foo_opt',
+                            group='bar')
         self.assertTrue(hasattr(cfg.CONF, 'bar'))
         self.assertTrue(hasattr(cfg.CONF.bar, 'foo'))
 
     def test_import_opt_import_errror(self):
         self.assertRaises(ImportError, cfg.CONF.import_opt,
-                          'blaa', 'tests.testmods.blaablaa_opt')
+                          'blaa', 'oslo_config.tests.testmods.blaablaa_opt')
 
     def test_import_opt_no_such_opt(self):
         self.assertRaises(cfg.NoSuchOptError, cfg.CONF.import_opt,
-                          'blaablaa', 'tests.testmods.blaa_opt')
+                          'blaablaa', 'oslo_config.tests.testmods.blaa_opt')
 
     def test_import_opt_no_such_group(self):
         self.assertRaises(cfg.NoSuchGroupError, cfg.CONF.import_opt,
-                          'blaa', 'tests.testmods.blaa_opt', group='blaa')
+                          'blaa', 'oslo_config.tests.testmods.blaa_opt',
+                          group='blaa')
 
 
 class ImportGroupTestCase(BaseTestCase):
 
     def test_import_group(self):
         self.assertFalse(hasattr(cfg.CONF, 'qux'))
-        cfg.CONF.import_group('qux', 'tests.testmods.baz_qux_opt')
+        cfg.CONF.import_group('qux', 'oslo_config.tests.testmods.baz_qux_opt')
         self.assertTrue(hasattr(cfg.CONF, 'qux'))
         self.assertTrue(hasattr(cfg.CONF.qux, 'baz'))
 
     def test_import_group_import_error(self):
         self.assertRaises(ImportError, cfg.CONF.import_group,
-                          'qux', 'tests.testmods.bazzz_quxxx_opt')
+                          'qux', 'oslo_config.tests.testmods.bazzz_quxxx_opt')
 
     def test_import_group_no_such_group(self):
         self.assertRaises(cfg.NoSuchGroupError, cfg.CONF.import_group,
-                          'quxxx', 'tests.testmods.baz_qux_opt')
+                          'quxxx', 'oslo_config.tests.testmods.baz_qux_opt')
 
 
 class RequiredOptsTestCase(BaseTestCase):

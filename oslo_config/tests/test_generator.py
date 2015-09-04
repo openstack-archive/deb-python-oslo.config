@@ -48,6 +48,19 @@ class GeneratorTestCase(base.BaseTestCase):
                                      'cupidatat non proident, sunt in culpa '
                                      'qui officia deserunt mollit anim id est '
                                      'laborum.'),
+        'long_help_pre': cfg.StrOpt('long_help_pre',
+                                    help='This is a very long help text which '
+                                         'is preformatted with line breaks. '
+                                         'It should break when it is too long '
+                                         'but also keep the specified line '
+                                         'breaks. This makes it possible to '
+                                         'create lists with items:\n'
+                                         '\n'
+                                         '* item 1\n'
+                                         '* item 2\n'
+                                         '\n'
+                                         'and should increase the '
+                                         'readability.'),
         'choices_opt': cfg.StrOpt('choices_opt',
                                   default='a',
                                   choices=(None, '', 'a', 'b', 'c'),
@@ -79,6 +92,8 @@ class GeneratorTestCase(base.BaseTestCase):
                                 help='a boolean'),
         'int_opt': cfg.IntOpt('int_opt',
                               default=10,
+                              min=1,
+                              max=20,
                               help='an integer'),
         'float_opt': cfg.FloatOpt('float_opt',
                                   default=0.1,
@@ -287,6 +302,26 @@ class GeneratorTestCase(base.BaseTestCase):
 '''
 #long_help = <None>
 ''')),
+        ('long_help_with_preformatting',
+         dict(opts=[('test', [(None, [opts['long_help_pre']])])],
+              wrap_width=70,
+              expected='''[DEFAULT]
+
+#
+# From test
+#
+
+# This is a very long help text which is preformatted with line
+# breaks. It should break when it is too long but also keep the
+# specified line breaks. This makes it possible to create lists with
+# items:
+#
+# * item 1
+# * item 2
+#
+# and should increase the readability. (string value)
+#long_help_pre = <None>
+''')),
         ('choices_opt',
          dict(opts=[('test', [(None, [opts['choices_opt']])])],
               expected='''[DEFAULT]
@@ -400,6 +435,8 @@ class GeneratorTestCase(base.BaseTestCase):
 #
 
 # an integer (integer value)
+# Minimum value: 1
+# Maximum value: 20
 #int_opt = 10
 ''')),
         ('float_opt',

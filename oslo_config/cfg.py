@@ -30,7 +30,7 @@ The schema for each option is defined using the
                    default='0.0.0.0',
                    help='IP address to listen on.'),
         cfg.Opt('bind_port',
-                type=PortType(),
+                type=PortType,
                 default=9292,
                 help='Port number to listen on.')
     ]
@@ -605,8 +605,8 @@ class Opt(object):
     :param positional: True if the option is a positional CLI argument
     :param metavar: the option argument to show in --help
     :param help: an explanation of how the option is used
-    :param secret: true iff the value should be obfuscated in log output
-    :param required: true iff a value must be supplied for this option
+    :param secret: true if the value should be obfuscated in log output
+    :param required: true if a value must be supplied for this option
     :param deprecated_name: deprecated name option.  Acts like an alias
     :param deprecated_group: the group containing a deprecated alias
     :param deprecated_opts: array of DeprecatedOpt(s)
@@ -1029,8 +1029,9 @@ class IntOpt(Opt):
     `Kept for backward-compatibility with options not using Opt directly`.
     """
 
-    def __init__(self, name, **kwargs):
-        super(IntOpt, self).__init__(name, type=types.Integer(), **kwargs)
+    def __init__(self, name, min=None, max=None, **kwargs):
+        super(IntOpt, self).__init__(name, type=types.Integer(min, max),
+                                     **kwargs)
 
 
 class FloatOpt(Opt):
@@ -1718,10 +1719,13 @@ class _CachedArgumentParser(argparse.ArgumentParser):
         # option and then sort the values slice.
         for container, values in six.iteritems(self._args_cache):
             index = 0
+            has_positional = False
             for index, argument in enumerate(values):
                 if not argument['args'][0].startswith('-'):
+                    has_positional = True
                     break
-            values[:index] = sorted(values[:index], key=lambda x: x['args'])
+            size = index if has_positional else len(values)
+            values[:size] = sorted(values[:size], key=lambda x: x['args'])
             for argument in values:
                 try:
                     container.add_argument(*argument['args'],
@@ -1888,10 +1892,12 @@ class ConfigOpts(collections.Mapping):
 
         :param name: the opt name (or 'dest', more precisely)
         :returns: the option value (after string substitution) or a GroupAttr
-        :raises: NoSuchOptError
+        :raises: ValueError or NoSuchOptError
         """
         try:
             return self._get(name)
+        except ValueError:
+            raise
         except Exception:
             raise NoSuchOptError(name)
 
@@ -2083,7 +2089,7 @@ class ConfigOpts(collections.Mapping):
         self._get_group(group)
 
     @__clear_cache
-    def set_override(self, name, override, group=None):
+    def set_override(self, name, override, group=None, enforce_type=False):
         """Override an opt value.
 
         Override the command line, config file and default values of a
@@ -2092,10 +2098,16 @@ class ConfigOpts(collections.Mapping):
         :param name: the name/dest of the opt
         :param override: the override value
         :param group: an option OptGroup object or group name
+        :param enforce_type: a boolean whether to convert the override
+         value to the option's type
         :raises: NoSuchOptError, NoSuchGroupError
         """
         opt_info = self._get_opt_info(name, group)
-        opt_info['override'] = override
+        if enforce_type:
+            opt_info['override'] = self._convert_value(override,
+                                                       opt_info['opt'])
+        else:
+            opt_info['override'] = override
 
     @__clear_cache
     def set_default(self, name, default, group=None):
