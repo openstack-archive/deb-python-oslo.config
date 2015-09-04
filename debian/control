@@ -101,6 +101,7 @@ Description: Common code for Openstack Projects (configuration API) - doc
 
 Package: python-oslo-config
 Section: oldlibs
+Priority: extra
 Architecture: all
 Depends: python-oslo.config,
          ${misc:Depends},
@@ -109,6 +110,7 @@ Description: transitional dummy package for python-oslo-config.
 
 Package: python-oslo-config-doc
 Section: oldlibs
+Priority: extra
 Architecture: all
 Depends: python-oslo.config-doc,
          ${misc:Depends},
@@ -117,6 +119,7 @@ Description: transitional dummy package for python-oslo-config-doc.
 
 Package: python3-oslo-config
 Section: oldlibs
+Priority: extra
 Architecture: all
 Depends: python3-oslo.config,
          ${misc:Depends},
