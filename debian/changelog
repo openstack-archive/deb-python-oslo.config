@@ -1,3 +1,10 @@
+python-oslo.config (1:2.3.0-2) UNRELEASED; urgency=medium
+
+  * Add package directory to PYTHONPATH before building doc, fixing
+    FTBFS.
+
+ -- James Page <james.page@ubuntu.com>  Tue, 08 Sep 2015 10:46:58 +0100
+
 python-oslo.config (1:2.3.0-1) experimental; urgency=medium
 
   [ James Page ]

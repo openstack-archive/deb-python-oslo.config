@@ -44,7 +44,7 @@ endif
 
 override_dh_sphinxdoc:
 ifeq (,$(findstring nodocs, $(DEB_BUILD_OPTIONS)))
-	sphinx-build $(SPHINXOPTS) -b html doc/source $(CURDIR)/debian/python-oslo.config-doc/usr/share/doc/python-oslo.config-doc/html
+	PYTHONPATH=$(CURDIR) sphinx-build $(SPHINXOPTS) -b html doc/source $(CURDIR)/debian/python-oslo.config-doc/usr/share/doc/python-oslo.config-doc/html
 	dh_sphinxdoc -O--buildsystem=python_distutils
 endif
 
