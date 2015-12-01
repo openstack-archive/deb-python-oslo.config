@@ -45,7 +45,7 @@ class ExceptionsTestCase(base.BaseTestCase):
 
     def test_no_such_opt_error(self):
         msg = str(cfg.NoSuchOptError('foo'))
-        self.assertEqual(msg, 'no such option: foo')
+        self.assertEqual(msg, 'no such option in group DEFAULT: foo')
 
     def test_no_such_opt_error_with_group(self):
         msg = str(cfg.NoSuchOptError('foo', cfg.OptGroup('bar')))
@@ -476,6 +476,24 @@ class CliOptsTestCase(BaseTestCase):
          dict(opt_class=cfg.DictOpt, default=None,
               cli_args=['--old-oof', 'key1:blaa', '--old-oof', 'key2:bar'],
               value={'key2': 'bar'}, deps=('oof', 'old'))),
+        ('port_default',
+         dict(opt_class=cfg.PortOpt, default=80,
+              cli_args=[], value=80, deps=(None, None))),
+        ('port_arg',
+         dict(opt_class=cfg.PortOpt, default=None,
+              cli_args=['--foo=80'], value=80, deps=(None, None))),
+        ('port_arg_deprecated_name',
+         dict(opt_class=cfg.PortOpt, default=None,
+              cli_args=['--oldfoo=80'], value=80, deps=('oldfoo', None))),
+        ('port_arg_deprecated_group',
+         dict(opt_class=cfg.PortOpt, default=None,
+              cli_args=['--old-foo=80'], value=80, deps=(None, 'old'))),
+        ('port_arg_deprecated_group_default',
+         dict(opt_class=cfg.PortOpt, default=None,
+              cli_args=['--foo=80'], value=80, deps=(None, 'DEFAULT'))),
+        ('port_arg_deprecated_group_and_name',
+         dict(opt_class=cfg.PortOpt, default=None,
+              cli_args=['--old-oof=80'], value=80, deps=('oof', 'old'))),
         ('multistr_default',
          dict(opt_class=cfg.MultiStrOpt, default=['bar'], cli_args=[],
               value=['bar'], deps=(None, None))),
@@ -622,6 +640,24 @@ class PositionalTestCase(BaseTestCase):
         self._do_pos_test(cfg.DictOpt, None,
                           ['key1:blaa,key2:bar'],
                           {'key1': 'blaa', 'key2': 'bar'})
+
+    def test_positional_ip_none_default(self):
+        self._do_pos_test(cfg.IPOpt, None, [], None)
+
+    def test_positional_ip_default(self):
+        self._do_pos_test(cfg.IPOpt, '127.0.0.1', [], '127.0.0.1')
+
+    def test_positional_ip_arg(self):
+        self._do_pos_test(cfg.IPOpt, None, ['127.0.0.1'], '127.0.0.1')
+
+    def test_positional_port_none_default(self):
+        self._do_pos_test(cfg.PortOpt, None, [], None)
+
+    def test_positional_port_default(self):
+        self._do_pos_test(cfg.PortOpt, 80, [], 80)
+
+    def test_positional_port_arg(self):
+        self._do_pos_test(cfg.PortOpt, None, ['443'], 443)
 
     def test_positional_multistr_none_default(self):
         self._do_pos_test(cfg.MultiStrOpt, None, [], None)
@@ -833,6 +869,15 @@ class ConfigFileOptsTestCase(BaseTestCase):
     def test_conf_file_str_ignore_dgroup_and_dname(self):
         self._do_dgroup_and_dname_test_ignore(cfg.StrOpt, 'value2', 'value2')
 
+    def test_conf_file_str_value_with_good_choice_value(self):
+        self.conf.register_opt(cfg.StrOpt('foo', choices=['bar', 'baz']))
+
+        paths = self.create_tempfiles([('test', '[DEFAULT]\n''foo = bar\n')])
+
+        self.conf(['--config-file', paths[0]])
+        self.assertTrue(hasattr(self.conf, 'foo'))
+        self.assertEqual(self.conf.foo, 'bar')
+
     def test_conf_file_bool_default(self):
         self.conf.register_opt(cfg.BoolOpt('foo', default=False))
 
@@ -943,10 +988,10 @@ class ConfigFileOptsTestCase(BaseTestCase):
         self.assertTrue(hasattr(self.conf, 'foo'))
         self.assertEqual(self.conf.foo, 666)
 
-    @mock.patch.object(cfg, 'LOG')
-    def test_conf_file_int_wrong_default(self, mock_log):
-        cfg.IntOpt('foo', default='666')
-        self.assertEqual(1, mock_log.debug.call_count)
+    def test_conf_file_int_string_default_type(self):
+        self.conf.register_opt(cfg.IntOpt('foo', default='666'))
+        self.conf([])
+        self.assertEqual(self.conf.foo, 666)
 
     def test_conf_file_int_value(self):
         self.conf.register_opt(cfg.IntOpt('foo'))
@@ -1022,10 +1067,9 @@ class ConfigFileOptsTestCase(BaseTestCase):
         self.assertTrue(hasattr(self.conf, 'foo'))
         self.assertEqual(self.conf.foo, 6.66)
 
-    @mock.patch.object(cfg, 'LOG')
-    def test_conf_file_float_default_wrong_type(self, mock_log):
-        cfg.FloatOpt('foo', default='foobar6.66')
-        self.assertEqual(1, mock_log.debug.call_count)
+    def test_conf_file_float_default_wrong_type(self):
+        self.assertRaises(cfg.DefaultValueError, cfg.FloatOpt, 'foo',
+                          default='foobar6.66')
 
     def test_conf_file_float_value(self):
         self.conf.register_opt(cfg.FloatOpt('foo'))
@@ -1088,15 +1132,9 @@ class ConfigFileOptsTestCase(BaseTestCase):
         self.assertTrue(hasattr(self.conf, 'foo'))
         self.assertEqual(self.conf.foo, ['bar'])
 
-    @mock.patch.object(cfg, 'LOG')
-    def test_conf_file_list_default_wrong_type(self, mock_log):
-        cfg.ListOpt('foo', default=25)
-        mock_log.debug.assert_called_once_with(
-            'Expected default value of type(s) %(extypes)s but '
-            'got %(default)r of type %(deftypes)s',
-            {'extypes': 'list',
-             'default': 25,
-             'deftypes': 'int'})
+    def test_conf_file_list_default_wrong_type(self):
+        self.assertRaises(cfg.DefaultValueError, cfg.ListOpt, 'foo',
+                          default=25)
 
     def test_conf_file_list_value(self):
         self.conf.register_opt(cfg.ListOpt('foo'))
@@ -1126,6 +1164,31 @@ class ConfigFileOptsTestCase(BaseTestCase):
 
         self.assertTrue(hasattr(self.conf, 'foo'))
         self.assertEqual(self.conf.foo, ['b', 'a', 'r'])
+
+    def test_conf_file_list_item_type(self):
+        self.conf.register_cli_opt(cfg.ListOpt('foo',
+                                               item_type=types.Integer()))
+
+        paths = self.create_tempfiles([('1',
+                                        '[DEFAULT]\n'
+                                        'foo = 1,2\n')])
+
+        self.conf(['--config-file', paths[0]])
+
+        self.assertTrue(hasattr(self.conf, 'foo'))
+        self.assertEqual([1, 2], self.conf.foo)
+
+    def test_conf_file_list_item_wrong_type(self):
+        self.assertRaises(cfg.DefaultValueError, cfg.ListOpt, 'foo',
+                          default="bar", item_type=types.Integer())
+
+    def test_conf_file_list_bounds(self):
+        self.conf.register_cli_opt(cfg.ListOpt('foo',
+                                               item_type=types.Integer(),
+                                               default="[1,2]",
+                                               bounds=True))
+        self.conf([])
+        self.assertEqual(self.conf.foo, [1, 2])
 
     def test_conf_file_list_use_dname(self):
         self._do_dname_test_use(cfg.ListOpt, 'a,b,c', ['a', 'b', 'c'])
@@ -1219,7 +1282,7 @@ class ConfigFileOptsTestCase(BaseTestCase):
         self.conf(['--config-file', paths[0]])
 
         self.assertRaises(cfg.ConfigFileValueError, self.conf._get, 'foo')
-        self.assertRaises(AttributeError, getattr, self.conf, 'foo')
+        self.assertRaises(ValueError, getattr, self.conf, 'foo')
 
     def test_conf_file_dict_value_duplicate_key(self):
         self.conf.register_opt(cfg.DictOpt('foo'))
@@ -1231,7 +1294,7 @@ class ConfigFileOptsTestCase(BaseTestCase):
         self.conf(['--config-file', paths[0]])
 
         self.assertRaises(cfg.ConfigFileValueError, self.conf._get, 'foo')
-        self.assertRaises(AttributeError, getattr, self.conf, 'foo')
+        self.assertRaises(ValueError, getattr, self.conf, 'foo')
 
     def test_conf_file_dict_values_override_deprecated(self):
         self.conf.register_cli_opt(cfg.DictOpt('foo',
@@ -1355,6 +1418,16 @@ class ConfigFileOptsTestCase(BaseTestCase):
                                               {'k1': 'd',
                                                'k2': 'e',
                                                'k3': 'f'})
+
+    def test_conf_file_port_outside_range(self):
+        self.conf.register_opt(cfg.PortOpt('foo'))
+
+        paths = self.create_tempfiles([('test',
+                                        '[DEFAULT]\n'
+                                        'foo = 65536\n')])
+
+        self.conf(['--config-file', paths[0]])
+        self.assertRaises(cfg.ConfigFileValueError, self.conf._get, 'foo')
 
     def test_conf_file_multistr_default(self):
         self.conf.register_opt(cfg.MultiStrOpt('foo', default=['bar']))
@@ -2302,6 +2375,30 @@ class ConfigDirTestCase(BaseTestCase):
         self.assertTrue(hasattr(self.conf.snafu, 'bell'))
         self.assertEqual(self.conf.snafu.bell, 'whistle-02')
 
+    def test_config_dir_multistr(self):
+        # Demonstrate that values for multistr options found in
+        # different sources are combined.
+        self.conf.register_cli_opt(cfg.MultiStrOpt('foo'))
+
+        dir = tempfile.mkdtemp()
+        self.tempdirs.append(dir)
+
+        paths = self.create_tempfiles([(os.path.join(dir, '00-test'),
+                                        '[DEFAULT]\n'
+                                        'foo = bar-00\n'),
+                                       (os.path.join(dir, '02-test'),
+                                        '[DEFAULT]\n'
+                                        'foo = bar-02\n'),
+                                       (os.path.join(dir, '01-test'),
+                                        '[DEFAULT]\n'
+                                        'foo = bar-01\n')])
+
+        self.conf(['--foo', 'bar',
+                   '--config-dir', os.path.dirname(paths[0])])
+
+        self.assertTrue(hasattr(self.conf, 'foo'))
+        self.assertEqual(['bar', 'bar-00', 'bar-01', 'bar-02'], self.conf.foo)
+
     def test_config_dir_file_precedence(self):
         snafu_group = cfg.OptGroup('snafu')
         self.conf.register_group(snafu_group)
@@ -2879,7 +2976,7 @@ class SadPathTestCase(BaseTestCase):
 
         self.conf(['--config-file', paths[0]])
 
-        self.assertRaises(AttributeError, getattr, self.conf, 'foo')
+        self.assertRaises(ValueError, getattr, self.conf, 'foo')
         self.assertRaises(cfg.ConfigFileValueError, self.conf._get, 'foo')
 
     def test_conf_file_bad_bool(self):
@@ -3592,7 +3689,7 @@ class ChoicesTestCase(BaseTestCase):
         self.conf(['--config-file', paths[0]])
 
         self.assertRaises(cfg.ConfigFileValueError, self.conf._get, 'foo')
-        self.assertRaises(AttributeError, getattr, self.conf, 'foo')
+        self.assertRaises(ValueError, getattr, self.conf, 'foo')
 
     def test_conf_file_choice_value_override(self):
         self.conf.register_cli_opt(cfg.StrOpt('foo',
@@ -3613,14 +3710,158 @@ class ChoicesTestCase(BaseTestCase):
         self.assertEqual(self.conf.foo, 'baaar')
 
     def test_conf_file_choice_bad_default(self):
+        self.assertRaises(cfg.DefaultValueError, cfg.StrOpt, 'foo',
+                          choices=['baar', 'baaar'], default='foobaz')
+
+
+class RegexTestCase(BaseTestCase):
+
+    def test_regex_good(self):
         self.conf.register_cli_opt(cfg.StrOpt('foo',
-                                              choices=['baar', 'baaar'],
-                                              default='foobaz'))
-        self.conf([])
-        self.assertRaises(AttributeError,
-                          getattr,
-                          self.conf,
-                          'foobaz')
+                                              regex='foo|bar'))
+        self.conf(['--foo', 'bar'])
+        self.assertEqual(self.conf.foo, 'bar')
+        self.conf(['--foo', 'foo'])
+        self.assertEqual(self.conf.foo, 'foo')
+        self.conf(['--foo', 'foobar'])
+        self.assertEqual(self.conf.foo, 'foobar')
+
+    def test_regex_bad(self):
+        self.conf.register_cli_opt(cfg.StrOpt('foo',
+                                              regex='bar'))
+        self.assertRaises(SystemExit, self.conf, ['--foo', 'foo'])
+
+    def test_conf_file_regex_value(self):
+        self.conf.register_opt(cfg.StrOpt('foo',
+                                          regex='bar'))
+
+        paths = self.create_tempfiles([('test', '[DEFAULT]\n''foo = bar\n')])
+
+        self.conf(['--config-file', paths[0]])
+        self.assertTrue(hasattr(self.conf, 'foo'))
+        self.assertEqual(self.conf.foo, 'bar')
+
+    def test_conf_file_regex_bad_value(self):
+        self.conf.register_opt(cfg.StrOpt('foo',
+                                          regex='bar'))
+
+        paths = self.create_tempfiles([('test', '[DEFAULT]\n''foo = other\n')])
+
+        self.conf(['--config-file', paths[0]])
+        self.assertRaisesRegex(cfg.ConfigFileValueError, "doesn't match regex",
+                               self.conf._get, 'foo')
+        self.assertRaisesRegex(ValueError, "doesn't match regex",
+                               getattr, self.conf, 'foo')
+
+    def test_regex_with_choice(self):
+        self.assertRaises(ValueError, cfg.StrOpt,
+                          'foo', choices=['bar1'], regex='bar2')
+
+
+class QuotesTestCase(BaseTestCase):
+
+    def test_quotes_good(self):
+        self.conf.register_cli_opt(cfg.StrOpt('foo',
+                                              quotes=True))
+        self.conf(['--foo', '"foobar1"'])
+        self.assertEqual(self.conf.foo, 'foobar1')
+        self.conf(['--foo', "'foobar2'"])
+        self.assertEqual(self.conf.foo, 'foobar2')
+        self.conf(['--foo', 'foobar3'])
+        self.assertEqual(self.conf.foo, 'foobar3')
+        self.conf(['--foo', 'foobar4"'])
+        self.assertEqual(self.conf.foo, 'foobar4"')
+
+    def test_quotes_bad(self):
+        self.conf.register_cli_opt(cfg.StrOpt('foo',
+                                              quotes=True))
+        self.assertRaises(SystemExit, self.conf, ['--foo', '"foobar\''])
+        self.assertRaises(SystemExit, self.conf, ['--foo', '\'foobar"'])
+        self.assertRaises(SystemExit, self.conf, ['--foo', '"foobar'])
+        self.assertRaises(SystemExit, self.conf, ['--foo', "'foobar"])
+
+    def test_conf_file_quotes_good_value(self):
+        self.conf.register_opt(cfg.StrOpt('foo',
+                                          quotes=True))
+
+        paths = self.create_tempfiles([('test', '[DEFAULT]\n''foo = "bar"\n')])
+
+        self.conf(['--config-file', paths[0]])
+        self.assertTrue(hasattr(self.conf, 'foo'))
+        self.assertEqual(self.conf.foo, 'bar')
+
+    def test_conf_file_quotes_bad_value(self):
+        self.conf.register_opt(cfg.StrOpt('foo',
+                                          quotes=True))
+
+        paths = self.create_tempfiles([('test', '[DEFAULT]\n''foo = "bar\n')])
+
+        self.conf(['--config-file', paths[0]])
+        self.assertRaisesRegex(cfg.ConfigFileValueError, 'Non-closed quote:',
+                               self.conf._get, 'foo')
+        self.assertRaisesRegex(ValueError, 'Non-closed quote:',
+                               getattr, self.conf, 'foo')
+
+
+class IgnoreCaseTestCase(BaseTestCase):
+
+    def test_ignore_case_with_choices(self):
+        self.conf.register_cli_opt(cfg.StrOpt('foo',
+                                              ignore_case=True,
+                                              choices=['bar1',
+                                                       'bar2',
+                                                       'BAR3']))
+        self.conf(['--foo', 'bAr1'])
+        self.assertEqual(self.conf.foo, 'bAr1')
+        self.conf(['--foo', 'BaR2'])
+        self.assertEqual(self.conf.foo, 'BaR2')
+        self.conf(['--foo', 'baR3'])
+        self.assertEqual(self.conf.foo, 'baR3')
+
+    def test_ignore_case_with_regex(self):
+        self.conf.register_cli_opt(cfg.StrOpt('foo',
+                                              ignore_case=True,
+                                              regex='fOO|bar'))
+        self.conf(['--foo', 'foo'])
+        self.assertEqual(self.conf.foo, 'foo')
+        self.conf(['--foo', 'Bar'])
+        self.assertEqual(self.conf.foo, 'Bar')
+        self.conf(['--foo', 'FOObar'])
+        self.assertEqual(self.conf.foo, 'FOObar')
+
+    def test_conf_file_ignore_case_with_choices(self):
+        self.conf.register_opt(cfg.StrOpt('foo',
+                                          ignore_case=True,
+                                          choices=['bar1', 'bar2', 'BAR3']))
+
+        paths = self.create_tempfiles([('test', '[DEFAULT]\n''foo = bAr2\n')])
+
+        self.conf(['--config-file', paths[0]])
+        self.assertTrue(hasattr(self.conf, 'foo'))
+        self.assertEqual(self.conf.foo, 'bAr2')
+
+    def test_conf_file_ignore_case_with_regex(self):
+        self.conf.register_opt(cfg.StrOpt('foo',
+                                          ignore_case=True,
+                                          regex='bAr'))
+
+        paths = self.create_tempfiles([('test', '[DEFAULT]\n''foo = BaR\n')])
+
+        self.conf(['--config-file', paths[0]])
+        self.assertTrue(hasattr(self.conf, 'foo'))
+        self.assertEqual(self.conf.foo, 'BaR')
+
+
+class StrOptMaxLengthTestCase(BaseTestCase):
+
+    def test_stropt_max_length_good(self):
+        self.conf.register_cli_opt(cfg.StrOpt('foo', max_length=5))
+        self.conf(['--foo', '12345'])
+        self.assertEqual(self.conf.foo, '12345')
+
+    def test_stropt_max_length_bad(self):
+        self.conf.register_cli_opt(cfg.StrOpt('foo', max_length=5))
+        self.assertRaises(SystemExit, self.conf, ['--foo', '123456'])
 
 
 class PrintHelpTestCase(base.BaseTestCase):

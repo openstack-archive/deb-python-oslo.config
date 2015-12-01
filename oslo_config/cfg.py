@@ -166,9 +166,9 @@ Options can be registered as belonging to a group::
     rabbit_host_opt = cfg.StrOpt('host',
                                  default='localhost',
                                  help='IP/hostname to listen on.'),
-    rabbit_port_opt = cfg.IntOpt('port',
-                                 default=5672,
-                                 help='Port number to listen on.')
+    rabbit_port_opt = cfg.PortOpt('port',
+                                  default=5672,
+                                  help='Port number to listen on.')
 
     def register_rabbit_opts(conf):
         conf.register_group(rabbit_group)
@@ -266,6 +266,26 @@ log files::
         ...
      ]
 
+Dictionary Options
+------------------
+
+If you need end users to specify a dictionary of key/value pairs, then you can
+use the DictOpt::
+
+    opts = [
+        cfg.DictOpt('foo',
+                    default={})
+    ]
+
+The end users can then specify the option foo in their configuration file
+as shown below:
+
+.. code-block:: ini
+
+    [DEFAULT]
+    foo = k1:v1,k2:v2
+
+
 Global ConfigOpts
 -----------------
 
@@ -276,7 +296,7 @@ in order to support a common usage pattern in OpenStack::
 
     opts = [
         cfg.StrOpt('bind_host', default='0.0.0.0'),
-        cfg.IntOpt('bind_port', default=9292),
+        cfg.PortOpt('bind_port', default=9292),
     ]
 
     CONF = cfg.CONF
@@ -373,11 +393,8 @@ class NoSuchOptError(Error, AttributeError):
         self.group = group
 
     def __str__(self):
-        if self.group is None:
-            return "no such option: %s" % self.opt_name
-        else:
-            return "no such option in group %s: %s" % (self.group.name,
-                                                       self.opt_name)
+        group_name = 'DEFAULT' if self.group is None else self.group.name
+        return "no such option in group %s: %s" % (group_name, self.opt_name)
 
 
 class NoSuchGroupError(Error):
@@ -465,9 +482,13 @@ class ConfigFileParseError(Error):
         return 'Failed to parse %s: %s' % (self.config_file, self.msg)
 
 
-class ConfigFileValueError(Error):
+class ConfigFileValueError(Error, ValueError):
     """Raised if a config file value does not match its opt type."""
     pass
+
+
+class DefaultValueError(Error, ValueError):
+    """Raised if a default config type does not fit the opt type."""
 
 
 def _fixpath(p):
@@ -653,6 +674,19 @@ class Opt(object):
     .. py:attribute:: help
 
         a string explaining how the option's value is used
+
+    .. versionchanged:: 1.2
+       Added *deprecated_opts* parameter.
+
+    .. versionchanged:: 1.4
+       Added *sample_default* parameter.
+
+    .. versionchanged:: 1.9
+       Added *deprecated_for_removal* parameter.
+
+    .. versionchanged:: 2.7
+
+       An exception is now raised if the default value has the wrong type.
     """
     multi = False
 
@@ -694,7 +728,7 @@ class Opt(object):
         if deprecated_name is not None or deprecated_group is not None:
             self.deprecated_opts.append(DeprecatedOpt(deprecated_name,
                                                       group=deprecated_group))
-        self._assert_default_is_of_opt_type()
+        self._check_default()
 
     def _default_is_ref(self):
         """Check if default is a reference to another var."""
@@ -703,19 +737,16 @@ class Opt(object):
             return '$' in tmpl
         return False
 
-    def _assert_default_is_of_opt_type(self):
+    def _check_default(self):
         if (self.default is not None
-                and not self._default_is_ref()
-                and hasattr(self.type, 'is_base_type')
-                and not self.type.is_base_type(self.default)):
-            # NOTE(tcammann) Change this to raise error after K relase
-            expected_types = ", ".join(
-                [t.__name__ for t in self.type.BASE_TYPES])
-            LOG.debug(('Expected default value of type(s) %(extypes)s but got '
-                       '%(default)r of type %(deftypes)s'),
-                      {'extypes': expected_types,
-                       'default': self.default,
-                       'deftypes': type(self.default).__name__})
+                and not self._default_is_ref()):
+            try:
+                self.type(self.default)
+            except Exception:
+                raise DefaultValueError("Error processing default value "
+                                        "%(default)s for Opt type of %(opt)s."
+                                        % {'default': self.default,
+                                           'opt': self.type})
 
     def __ne__(self, another):
         return vars(self) != vars(another)
@@ -929,6 +960,8 @@ class DeprecatedOpt(object):
 
     Then the value of "[group1]/opt1" will be ['val11', 'val12', 'val21',
     'val22'].
+
+    .. versionadded:: 1.2
     """
 
     def __init__(self, name, group=None):
@@ -955,14 +988,39 @@ class StrOpt(Opt):
 
     Option with ``type`` :class:`oslo_config.types.String`
 
-    `Kept for backward-compatibility with options not using Opt directly`.
-
     :param choices: Optional sequence of valid values.
+    :param quotes: If True and string is enclosed with single or double
+                   quotes, will strip those quotes.
+    :param regex: Optional regular expression (string or compiled
+                  regex) that the value must match on an unanchored
+                  search.
+    :param ignore_case: If True case differences (uppercase vs. lowercase)
+                        between 'choices' or 'regex' will be ignored.
+    :param max_length: If positive integer, the value must be less than or
+                       equal to this parameter.
+
+    .. versionchanged:: 2.7
+       Added *quotes* parameter
+
+    .. versionchanged:: 2.7
+       Added *regex* parameter
+
+    .. versionchanged:: 2.7
+       Added *ignore_case* parameter
+
+    .. versionchanged:: 2.7
+       Added *max_length* parameter
     """
 
-    def __init__(self, name, choices=None, **kwargs):
+    def __init__(self, name, choices=None, quotes=None,
+                 regex=None, ignore_case=None, max_length=None, **kwargs):
         super(StrOpt, self).__init__(name,
-                                     type=types.String(choices=choices),
+                                     type=types.String(
+                                         choices=choices,
+                                         quotes=quotes,
+                                         regex=regex,
+                                         ignore_case=ignore_case,
+                                         max_length=max_length),
                                      **kwargs)
 
 
@@ -971,7 +1029,7 @@ class BoolOpt(Opt):
     """Boolean options.
 
     Bool opts are set to True or False on the command line using --optname or
-    --noopttname respectively.
+    --nooptname respectively.
 
     In config files, boolean values are cast with Boolean type.
     """
@@ -1026,7 +1084,9 @@ class IntOpt(Opt):
 
     Option with ``type`` :class:`oslo_config.types.Integer`
 
-    `Kept for backward-compatibility with options not using Opt directly`.
+    .. versionchanged:: 1.15
+
+       Added *min* and *max* parameters.
     """
 
     def __init__(self, name, min=None, max=None, **kwargs):
@@ -1039,8 +1099,6 @@ class FloatOpt(Opt):
     """Option with Float type
 
     Option with ``type`` :class:`oslo_config.types.Float`
-
-    `Kept for backward-communicability with options not using Opt directly`.
     """
 
     def __init__(self, name, **kwargs):
@@ -1053,11 +1111,15 @@ class ListOpt(Opt):
 
     Option with ``type`` :class:`oslo_config.types.List`
 
-    `Kept for backward-compatibility with options not using Opt directly`.
+    .. versionchanged:: 2.5
+       Added *item_type* and *bounds* parameters.
     """
 
-    def __init__(self, name, **kwargs):
-        super(ListOpt, self).__init__(name, type=types.List(), **kwargs)
+    def __init__(self, name, item_type=None, bounds=None, **kwargs):
+        super(ListOpt, self).__init__(name,
+                                      type=types.List(item_type=item_type,
+                                                      bounds=bounds),
+                                      **kwargs)
 
 
 class DictOpt(Opt):
@@ -1066,7 +1128,7 @@ class DictOpt(Opt):
 
     Option with ``type`` :class:`oslo_config.types.Dict`
 
-    `Kept for backward-compatibility with options not using Opt directly`.
+    .. versionadded:: 1.2
     """
 
     def __init__(self, name, **kwargs):
@@ -1081,11 +1143,27 @@ class IPOpt(Opt):
 
     :param version: one of either ``4``, ``6``, or ``None`` to specify
        either version.
+
+    .. versionadded:: 1.4
     """
 
     def __init__(self, name, version=None, **kwargs):
         super(IPOpt, self).__init__(name, type=types.IPAddress(version),
                                     **kwargs)
+
+
+class PortOpt(Opt):
+
+    """Option for a TCP/IP port number.  Ports can range from 1 to 65535.
+
+    Option with ``type`` :class:`oslo_config.types.Integer`
+
+    .. versionadded:: 2.6
+    """
+
+    def __init__(self, name, **kwargs):
+        type = types.Integer(min=1, max=65535, type_name='port value')
+        super(PortOpt, self).__init__(name, type=type, **kwargs)
 
 
 class MultiOpt(Opt):
@@ -1107,6 +1185,8 @@ class MultiOpt(Opt):
 
     The command line ``--foo=1 --foo=2`` would result in ``cfg.CONF.foo``
     containing ``[1,2]``
+
+    .. versionadded:: 1.3
     """
     multi = True
 
@@ -1129,10 +1209,6 @@ class MultiStrOpt(MultiOpt):
 
     MultiOpt with a default :class:`oslo_config.types.MultiString` item
     type.
-
-    `Kept for backwards-compatibility for options that do not use
-    MultiOpt directly`.
-
     """
 
     def __init__(self, name, **kwargs):
@@ -1209,6 +1285,8 @@ class _ConfigFileOpt(Opt):
     This allows us to properly handle the precedence of --config-file
     options over previous command line arguments, but not over subsequent
     arguments.
+
+    .. versionadded:: 1.2
     """
 
     class ConfigFileAction(argparse.Action):
@@ -1255,6 +1333,8 @@ class _ConfigDirOpt(Opt):
     _Namespace object. This allows us to properly handle the precedence of
     --config-dir options over previous command line arguments, but not
     over subsequent arguments.
+
+    .. versionadded:: 1.2
     """
 
     class ConfigDirAction(argparse.Action):
@@ -1681,12 +1761,10 @@ class _Namespace(argparse.Namespace):
         try:
             return self._get_cli_value(names, positional)
         except KeyError:
-            pass
-
-        names = [(g if g is not None else 'DEFAULT', n) for g, n in names]
-        values = self._parser._get(names, multi=multi, normalized=True,
-                                   current_name=current_name)
-        return values if multi else values[-1]
+            names = [(g if g is not None else 'DEFAULT', n) for g, n in names]
+            values = self._parser._get(names, multi=multi, normalized=True,
+                                       current_name=current_name)
+            return values if multi else values[-1]
 
 
 class _CachedArgumentParser(argparse.ArgumentParser):
@@ -1860,7 +1938,6 @@ class ConfigOpts(collections.Mapping):
         :param usage: a usage string (%prog will be expanded)
         :param default_config_files: config files to use by default
         :param validate_default_values: whether to validate the default values
-        :returns: the list of arguments left over after parsing options
         :raises: SystemExit, ConfigFilesNotFoundError, ConfigFileParseError,
                  ConfigFilesPermissionDeniedError,
                  RequiredOptError, DuplicateOptError
@@ -2267,15 +2344,14 @@ class ConfigOpts(collections.Mapping):
             key = (group.name, name)
         else:
             key = (group, name)
-        try:
-            if namespace is not None:
-                raise KeyError
-
-            return self.__cache[key]
-        except KeyError:
-            value = self._do_get(name, group, namespace)
-            self.__cache[key] = value
-            return value
+        if namespace is None:
+            try:
+                return self.__cache[key]
+            except KeyError:  # nosec: Valid control flow instruction
+                pass
+        value = self._do_get(name, group, namespace)
+        self.__cache[key] = value
+        return value
 
     def _do_get(self, name, group=None, namespace=None):
         """Look up an option value.
@@ -2311,7 +2387,7 @@ class ConfigOpts(collections.Mapping):
             group_name = group.name if group else None
             try:
                 return convert(opt._get_from_namespace(namespace, group_name))
-            except KeyError:
+            except KeyError:  # nosec: Valid control flow instruction
                 pass
             except ValueError as ve:
                 raise ConfigFileValueError(

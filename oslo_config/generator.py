@@ -20,6 +20,7 @@
 Tool for generating a sample configuration file. See
 ../doc/source/generator.rst for details.
 
+.. versionadded:: 1.4
 """
 
 import logging
@@ -73,12 +74,13 @@ def _format_defaults(opt):
             default_str = str(opt.sample_default)
         elif opt.default is None:
             default_str = '<None>'
-        elif isinstance(opt, cfg.StrOpt):
+        elif (isinstance(opt, cfg.StrOpt) or
+              isinstance(opt, cfg.IPOpt)):
             default_str = opt.default
         elif isinstance(opt, cfg.BoolOpt):
             default_str = str(opt.default).lower()
-        elif (isinstance(opt, cfg.IntOpt) or
-              isinstance(opt, cfg.FloatOpt)):
+        elif isinstance(opt, (cfg.IntOpt, cfg.FloatOpt,
+                              cfg.PortOpt)):
             default_str = str(opt.default)
         elif isinstance(opt, cfg.ListOpt):
             default_str = ','.join(opt.default)
@@ -102,16 +104,6 @@ def _format_defaults(opt):
 class _OptFormatter(object):
 
     """Format configuration option descriptions to a file."""
-
-    _TYPE_DESCRIPTIONS = {
-        cfg.StrOpt: 'string value',
-        cfg.BoolOpt: 'boolean value',
-        cfg.IntOpt: 'integer value',
-        cfg.FloatOpt: 'floating point value',
-        cfg.ListOpt: 'list value',
-        cfg.DictOpt: 'dict value',
-        cfg.MultiStrOpt: 'multi valued',
-    }
 
     def __init__(self, output_file=None, wrap_width=70):
         """Construct an OptFormatter object.
@@ -149,6 +141,21 @@ class _OptFormatter(object):
             return "''"
         return six.text_type(choice)
 
+    def format_group(self, group_or_groupname):
+        """Format the description of a group header to the output file
+
+        :param group_or_groupname: a cfg.OptGroup instance or a name of group
+        """
+        if isinstance(group_or_groupname, cfg.OptGroup):
+            group = group_or_groupname
+            lines = ['[%s]\n' % group.name]
+            if group.help:
+                lines += self._format_help(group.help)
+        else:
+            groupname = group_or_groupname
+            lines = ['[%s]\n' % groupname]
+        self.writelines(lines)
+
     def format(self, opt):
         """Format a description of an option to the output file.
 
@@ -157,7 +164,8 @@ class _OptFormatter(object):
         if not opt.help:
             LOG.warning('"%s" is missing a help string', opt.dest)
 
-        opt_type = self._TYPE_DESCRIPTIONS.get(type(opt), 'unknown type')
+        option_type = getattr(opt, 'type', None)
+        opt_type = getattr(option_type, 'type_name', 'unknown value')
 
         if opt.help:
             help_text = u'%s (%s)' % (opt.help,
@@ -252,13 +260,7 @@ def generate(conf):
             namespaces.append((namespace, opts))
 
     def _output_opts(f, group, namespaces):
-        if isinstance(group, cfg.OptGroup):
-            group_name = group.name
-        else:
-            group_name = group
-
-        f.write('[%s]\n' % group_name)
-
+        f.format_group(group)
         for (namespace, opts) in sorted(namespaces,
                                         key=operator.itemgetter(0)):
             f.write('\n#\n# From %s\n#\n' % namespace)
@@ -266,9 +268,23 @@ def generate(conf):
                 f.write('\n')
                 f.format(opt)
 
+    def _get_group_name(item):
+        group = item[0]
+        # The keys of the groups dictionary could be an OptGroup. Otherwise the
+        # help text of an OptGroup wouldn't be part of the generated sample
+        # file. It could also be just a plain group name without any further
+        # attributes. That's the reason why we have to distinct this here.
+        if isinstance(group, cfg.OptGroup):
+            group_name = group.name
+        else:
+            group_name = group
+        return group_name
+
+    # Output the "DEFAULT" section as the very first section
     _output_opts(formatter, 'DEFAULT', groups.pop('DEFAULT'))
-    for group, namespaces in sorted(groups.items(),
-                                    key=operator.itemgetter(0)):
+
+    # output all other config sections with opts in alphabetical order
+    for group, namespaces in sorted(groups.items(), key=_get_group_name):
         formatter.write('\n\n')
         _output_opts(formatter, group, namespaces)
 

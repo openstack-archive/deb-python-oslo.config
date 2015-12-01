@@ -17,6 +17,7 @@
 Use these classes as values for the `type` argument to
 :class:`oslo_config.cfg.Opt` and its subclasses.
 
+.. versionadded:: 1.3
 """
 import re
 
@@ -25,11 +26,8 @@ import six
 
 
 class ConfigType(object):
-
-    BASE_TYPES = (None,)
-
-    def is_base_type(self, other):
-        return isinstance(other, self.BASE_TYPES)
+    def __init__(self, type_name='unknown type'):
+        self.type_name = type_name
 
 
 class String(ConfigType):
@@ -48,18 +46,51 @@ class String(ConfigType):
     :param regex: Optional regular expression (string or compiled
                   regex) that the value must match on an unanchored
                   search. Mutually exclusive with 'choices'.
+    :param ignore_case:  If True case differences (uppercase vs. lowercase)
+                         between 'choices' or 'regex' will be ignored;
+                         defaults to False.
+    :param max_length:  Optional integer. If a positive value is specified,
+                        a maximum length of an option value must be less than
+                        or equal to this parameter. Otherwise no length check
+                        will be done.
+    :param type_name: Type name to be used in the sample config file.
+
+    .. versionchanged:: 2.1
+       Added *regex* parameter.
+
+    .. versionchanged:: 2.5
+       Added *ignore_case* parameter.
+
+    .. versionchanged:: 2.7
+       Added *max_length* parameter.
+       Added *type_name* parameter.
     """
 
-    BASE_TYPES = six.string_types
-
-    def __init__(self, choices=None, quotes=False, regex=None):
-        super(String, self).__init__()
+    def __init__(self, choices=None, quotes=False, regex=None,
+                 ignore_case=False, max_length=None,
+                 type_name='string value'):
+        super(String, self).__init__(type_name=type_name)
         if choices and regex:
             raise ValueError("'choices' and 'regex' cannot both be specified")
 
-        self.choices = choices
+        self.ignore_case = ignore_case
         self.quotes = quotes
-        self.regex = re.compile(regex) if regex is not None else None
+        self.max_length = max_length or 0
+
+        self.choices = choices
+        self.lower_case_choices = None
+        if self.choices is not None and self.ignore_case:
+            self.lower_case_choices = [c.lower() for c in choices]
+
+        self.regex = regex
+        if self.regex is not None:
+            re_flags = re.IGNORECASE if self.ignore_case else 0
+
+            # Check if regex is a string or an already compiled regex
+            if isinstance(regex, six.string_types):
+                self.regex = re.compile(regex, re_flags)
+            else:
+                self.regex = re.compile(regex.pattern, re_flags | regex.flags)
 
     def __call__(self, value):
         value = str(value)
@@ -69,11 +100,22 @@ class String(ConfigType):
                     raise ValueError('Non-closed quote: %s' % value)
                 value = value[1:-1]
 
+        if self.max_length > 0 and len(value) > self.max_length:
+            raise ValueError("Value '%s' exceeds maximum length %d" %
+                             (value, self.max_length))
+
         if self.regex and not self.regex.search(value):
             raise ValueError("Value %r doesn't match regex %r" %
                              (value, self.regex.pattern))
 
-        if self.choices is None or value in self.choices:
+        if self.choices is None:
+            return value
+
+        # Check for case insensitive
+        processed_value, choices = ((value.lower(), self.lower_case_choices)
+                                    if self.ignore_case else
+                                    (value, self.choices))
+        if processed_value in choices:
             return value
 
         raise ValueError(
@@ -101,8 +143,8 @@ class String(ConfigType):
 
 
 class MultiString(String):
-
-    BASE_TYPES = six.string_types + (list,)
+    def __init__(self, type_name='multi valued'):
+        super(MultiString, self).__init__(type_name=type_name)
 
 
 class Boolean(ConfigType):
@@ -111,11 +153,18 @@ class Boolean(ConfigType):
 
     Values are case insensitive and can be set using
     1/0, yes/no, true/false or on/off.
+
+    :param type_name: Type name to be used in the sample config file.
+
+    .. versionchanged:: 2.7
+
+       Added *type_name* parameter.
     """
     TRUE_VALUES = ['true', '1', 'on', 'yes']
     FALSE_VALUES = ['false', '0', 'off', 'no']
 
-    BASE_TYPES = (bool,)
+    def __init__(self, type_name='boolean value'):
+        super(Boolean, self).__init__(type_name=type_name)
 
     def __call__(self, value):
         if isinstance(value, bool):
@@ -145,12 +194,17 @@ class Integer(ConfigType):
 
     :param min: Optional check that value is greater than or equal to min
     :param max: Optional check that value is less than or equal to max
+    :param type_name: Type name to be used in the sample config file.
+
+    .. versionchanged:: 2.4
+       The class now honors zero for *min* and *max* parameters.
+
+    .. versionchanged:: 2.7
+       Added *type_name* parameter.
     """
 
-    BASE_TYPES = six.integer_types
-
-    def __init__(self, min=None, max=None):
-        super(Integer, self).__init__()
+    def __init__(self, min=None, max=None, type_name='integer value'):
+        super(Integer, self).__init__(type_name=type_name)
         self.min = min
         self.max = max
         if min is not None and max is not None and max < min:
@@ -197,10 +251,17 @@ class Integer(ConfigType):
 
 class Float(ConfigType):
 
-    """Float type."""
+    """Float type.
 
-    # allow float to be set from int
-    BASE_TYPES = six.integer_types + (float,)
+    :param type_name: Type name to be used in the sample config file.
+
+    .. versionchanged:: 2.7
+
+       Added *type_name* parameter.
+    """
+
+    def __init__(self, type_name='floating point value'):
+        super(Float, self).__init__(type_name=type_name)
 
     def __call__(self, value):
         if isinstance(value, float):
@@ -229,12 +290,15 @@ class List(ConfigType):
 
     :param item_type: type of list items
     :param bounds: if True, value should be inside "[" and "]" pair
+    :param type_name: Type name to be used in the sample config file.
+
+    .. versionchanged:: 2.7
+
+       Added *type_name* parameter.
     """
 
-    BASE_TYPES = (list,)
-
-    def __init__(self, item_type=None, bounds=False):
-        super(List, self).__init__()
+    def __init__(self, item_type=None, bounds=False, type_name='list value'):
+        super(List, self).__init__(type_name=type_name)
 
         if item_type is None:
             item_type = String()
@@ -302,12 +366,15 @@ class Dict(ConfigType):
 
     :param value_type: type of values in dictionary
     :param bounds: if True, value should be inside "{" and "}" pair
+    :param type_name: Type name to be used in the sample config file.
+
+    .. versionchanged:: 2.7
+
+       Added *type_name* parameter.
     """
 
-    BASE_TYPES = (dict,)
-
-    def __init__(self, value_type=None, bounds=False):
-        super(Dict, self).__init__()
+    def __init__(self, value_type=None, bounds=False, type_name='dict value'):
+        super(Dict, self).__init__(type_name=type_name)
 
         if value_type is None:
             value_type = String()
@@ -389,13 +456,15 @@ class IPAddress(ConfigType):
     versions are checked
 
     :param version: defines which version should be explicitly checked (4 or 6)
+    :param type_name: Type name to be used in the sample config file.
 
+    .. versionchanged:: 2.7
+
+       Added *type_name* parameter.
     """
 
-    BASE_TYPES = six.string_types
-
-    def __init__(self, version=None):
-        super(IPAddress, self).__init__()
+    def __init__(self, version=None, type_name='ip address value'):
+        super(IPAddress, self).__init__(type_name=type_name)
         version_checkers = {
             None: self._check_both_versions,
             4: self._check_ipv4,
