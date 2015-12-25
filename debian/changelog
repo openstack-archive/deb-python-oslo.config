@@ -1,3 +1,10 @@
+python-oslo.config (1:2.4.0-4) UNRELEASED; urgency=medium
+
+  * d/copyright: Fix wrong value of Upstream-Name field.
+    (LP#1493101)
+
+ -- Ivan Udovichenko <iudovichenko@mirantis.com>  Fri, 25 Dec 2015 14:37:15 +0200
+
 python-oslo.config (1:2.4.0-3) unstable; urgency=medium
 
   * override_dh_python3 to fix Py3 shebang.
