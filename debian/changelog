@@ -1,9 +1,13 @@
-python-oslo.config (1:3.0.0-2) UNRELEASED; urgency=medium
+python-oslo.config (1:3.2.0-1) experimental; urgency=medium
 
+  [ Ivan Udovichenko ]
   * d/copyright: Fix wrong value of Upstream-Name field.
     (LP#1493101)
 
- -- Ivan Udovichenko <iudovichenko@mirantis.com>  Fri, 25 Dec 2015 14:39:23 +0200
+  [ Thomas Goirand ]
+  * New upstream release.
+
+ -- Thomas Goirand <zigo@debian.org>  Wed, 13 Jan 2016 01:43:00 +0000
 
 python-oslo.config (1:3.0.0-1) experimental; urgency=medium
 
