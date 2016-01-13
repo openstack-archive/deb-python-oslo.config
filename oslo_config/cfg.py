@@ -38,14 +38,34 @@ The schema for each option is defined using the
 Option Types
 ------------
 
-Options can have arbitrary types via the ``type`` constructor to
-``Opt``. The type constructor is a callable object that takes a string and
-either returns a value of that particular type or raises ValueError if
+Options can have arbitrary types via the `type` parameter to the :class:`Opt`
+constructor. The `type` parameter is a callable object that takes a string and
+either returns a value of that particular type or raises :class:`ValueError` if
 the value can not be converted.
 
-There are predefined types in :class:`oslo_config.cfg` : strings,
-integers, floats, booleans, lists, 'multi strings' and 'key/value
-pairs' (dictionary) ::
+For convenience, there are predefined option subclasses in
+:mod:`oslo_config.cfg` that set the option `type` as in the following table:
+
+====================================  ======
+Type                                  Option
+====================================  ======
+:class:`oslo_config.types.String`     - :class:`oslo_config.cfg.StrOpt`
+                                      - :class:`oslo_config.cfg.SubCommandOpt`
+:class:`oslo_config.types.Boolean`    :class:`oslo_config.cfg.BoolOpt`
+:class:`oslo_config.types.Integer`    - :class:`oslo_config.cfg.IntOpt`
+                                      - :class:`oslo_config.cfg.PortOpt`
+:class:`oslo_config.types.Float`      :class:`oslo_config.cfg.FloatOpt`
+:class:`oslo_config.types.List`       :class:`oslo_config.cfg.ListOpt`
+:class:`oslo_config.types.Dict`       :class:`oslo_config.cfg.DictOpt`
+:class:`oslo_config.types.IPAddress`  :class:`oslo_config.cfg.IPOpt`
+====================================  ======
+
+For :class:`oslo_config.cfg.MultiOpt` the `item_type` parameter defines
+the type of the values. For convenience, :class:`oslo_config.cfg.MultiStrOpt`
+is :class:`~oslo_config.cfg.MultiOpt` with the `item_type` parameter set to
+:class:`oslo_config.types.MultiString`.
+
+The following example defines options using the convenience classes::
 
     enabled_apis_opt = cfg.ListOpt('enabled_apis',
                                    default=['ec2', 'osapi_compute'],
@@ -140,8 +160,9 @@ for example glance-api.conf and glance-common.conf::
       bind_host = 0.0.0.0
 
 Option values in config files and those on the command line are parsed
-in order. The same option can appear many times, in config files or on
-the command line. Later values always override earlier ones.
+in order. The same option (includes deprecated option name and current
+option name) can appear many times, in config files or on the command line.
+Later values always override earlier ones.
 
 The order of configuration files inside the same configuration directory is
 defined by the alphabetic sorting order of their file names.
@@ -610,6 +631,7 @@ def _normalize_group_name(group_name):
     return group_name.lower()
 
 
+@functools.total_ordering
 class Opt(object):
 
     """Base class for all configuration options.
@@ -634,6 +656,9 @@ class Opt(object):
     :param sample_default: a default string for sample config files
     :param deprecated_for_removal: indicates whether this opt is planned for
                                    removal in a future release
+    :param deprecated_reason: indicates why this opt is planned for removal in
+                              a future release. Silently ignored if
+                              deprecated_for_removal is False
 
     An Opt object has no public methods, but has a number of public properties:
 
@@ -695,7 +720,7 @@ class Opt(object):
                  secret=False, required=False,
                  deprecated_name=None, deprecated_group=None,
                  deprecated_opts=None, sample_default=None,
-                 deprecated_for_removal=False):
+                 deprecated_for_removal=False, deprecated_reason=None):
         if name.startswith('_'):
             raise ValueError('illegal name %s with prefix _' % (name,))
         self.name = name
@@ -720,6 +745,7 @@ class Opt(object):
         self.secret = secret
         self.required = required
         self.deprecated_for_removal = deprecated_for_removal
+        self.deprecated_reason = deprecated_reason
         self._logged_deprecation = False
         if deprecated_name is not None:
             deprecated_name = deprecated_name.replace('-', '_')
@@ -908,10 +934,6 @@ class Opt(object):
     def __lt__(self, another):
         return hash(self) < hash(another)
 
-# NOTE(jd) Not available for py2.6
-if six.PY3:
-    Opt = functools.total_ordering(Opt)
-
 
 class DeprecatedOpt(object):
 
@@ -988,6 +1010,7 @@ class StrOpt(Opt):
 
     Option with ``type`` :class:`oslo_config.types.String`
 
+    :param name: the option's name
     :param choices: Optional sequence of valid values.
     :param quotes: If True and string is enclosed with single or double
                    quotes, will strip those quotes.
@@ -998,6 +1021,7 @@ class StrOpt(Opt):
                         between 'choices' or 'regex' will be ignored.
     :param max_length: If positive integer, the value must be less than or
                        equal to this parameter.
+    :param \*\*kwargs: arbitrary keyword arguments passed to :class:`Opt`
 
     .. versionchanged:: 2.7
        Added *quotes* parameter
@@ -1032,6 +1056,9 @@ class BoolOpt(Opt):
     --nooptname respectively.
 
     In config files, boolean values are cast with Boolean type.
+
+    :param name: the option's name
+    :param \*\*kwargs: arbitrary keyword arguments passed to :class:`Opt`
     """
 
     def __init__(self, name, **kwargs):
@@ -1084,6 +1111,11 @@ class IntOpt(Opt):
 
     Option with ``type`` :class:`oslo_config.types.Integer`
 
+    :param name: the option's name
+    :param min: minimum value the integer can take
+    :param max: maximum value the integer can take
+    :param \*\*kwargs: arbitrary keyword arguments passed to :class:`Opt`
+
     .. versionchanged:: 1.15
 
        Added *min* and *max* parameters.
@@ -1099,6 +1131,9 @@ class FloatOpt(Opt):
     """Option with Float type
 
     Option with ``type`` :class:`oslo_config.types.Float`
+
+    :param name: the option's name
+    :param \*\*kwargs: arbitrary keyword arguments passed to :class:`Opt`
     """
 
     def __init__(self, name, **kwargs):
@@ -1110,6 +1145,11 @@ class ListOpt(Opt):
     """Option with List(String) type
 
     Option with ``type`` :class:`oslo_config.types.List`
+
+    :param name: the option's name
+    :param item_type: type of items (see :class:`oslo_config.types`)
+    :param bounds: if True the value should be inside "[" and "]" pair
+    :param \*\*kwargs: arbitrary keyword arguments passed to :class:`Opt`
 
     .. versionchanged:: 2.5
        Added *item_type* and *bounds* parameters.
@@ -1128,6 +1168,9 @@ class DictOpt(Opt):
 
     Option with ``type`` :class:`oslo_config.types.Dict`
 
+    :param name: the option's name
+    :param \*\*kwargs: arbitrary keyword arguments passed to :class:`Opt`
+
     .. versionadded:: 1.2
     """
 
@@ -1141,8 +1184,10 @@ class IPOpt(Opt):
 
     Option with ``type`` :class:`oslo_config.types.IPAddress`
 
+    :param name: the option's name
     :param version: one of either ``4``, ``6``, or ``None`` to specify
        either version.
+    :param \*\*kwargs: arbitrary keyword arguments passed to :class:`Opt`
 
     .. versionadded:: 1.4
     """
@@ -1158,11 +1203,36 @@ class PortOpt(Opt):
 
     Option with ``type`` :class:`oslo_config.types.Integer`
 
-    .. versionadded:: 2.6
-    """
+    :param name: the option's name
+    :param choices: Optional sequence of valid values.
+    :param \*\*kwargs: arbitrary keyword arguments passed to :class:`Opt`
 
-    def __init__(self, name, **kwargs):
-        type = types.Integer(min=1, max=65535, type_name='port value')
+    .. versionadded:: 2.6
+    .. versionchanged:: 3.2
+       Added *choices* parameter.
+    """
+    PORT_MIN = 1
+    PORT_MAX = 65535
+
+    def __init__(self, name, choices=None, **kwargs):
+
+        # choices and min/max are mutally exclusive for Integer type. So check
+        # if choice are in the range of min/max and only assign choices to
+        # Integer type.
+        if choices is not None:
+            invalid_choices = []
+            for choice in choices:
+                if not self.PORT_MIN <= choice <= self.PORT_MAX:
+                    invalid_choices.append(six.text_type(choice))
+            if invalid_choices:
+                raise ValueError("'Choices' values %(choices)s should be in "
+                                 "the range of %(min)d and %(max)d" %
+                                 {'choices': ', '.join(invalid_choices),
+                                  'min': self.PORT_MIN, 'max': self.PORT_MAX})
+            type = types.Integer(choices=choices, type_name='port value')
+        else:
+            type = types.Integer(min=self.PORT_MIN, max=self.PORT_MAX,
+                                 type_name='port value')
         super(PortOpt, self).__init__(name, type=type, **kwargs)
 
 
@@ -1173,8 +1243,9 @@ class MultiOpt(Opt):
     Multi opt values are typed opts which may be specified multiple times.
     The opt value is a list containing all the values specified.
 
-    :param name: Name of the config option
+    :param name: the option's name
     :param item_type: Type of items (see :class:`oslo_config.types`)
+    :param \*\*kwargs: arbitrary keyword arguments passed to :class:`Opt`
 
     For example::
 
@@ -1209,6 +1280,9 @@ class MultiStrOpt(MultiOpt):
 
     MultiOpt with a default :class:`oslo_config.types.MultiString` item
     type.
+
+    :param name: the option's name
+    :param \*\*kwargs: arbitrary keyword arguments passed to :class:`MultiOpt`
     """
 
     def __init__(self, name, **kwargs):
@@ -1231,6 +1305,13 @@ class SubCommandOpt(Opt):
     The opt value is SubCommandAttr object with the name of the chosen
     sub-parser stored in the 'name' attribute and the values of other
     sub-parser arguments available as additional attributes.
+
+    :param name: the option's name
+    :param dest: the name of the corresponding ConfigOpts property
+    :param handler: callable which is supplied subparsers object when invoked
+    :param title: title of the sub-commands group in help output
+    :param description: description of the group in help output
+    :param help: a help string giving an overview of available sub-commands
     """
 
     def __init__(self, name, dest=None, handler=None,
@@ -1242,12 +1323,6 @@ class SubCommandOpt(Opt):
         an subparsers object when invoked. The add_parser() method on
         this subparsers object can be used to register parsers for
         sub-commands.
-
-        :param name: the option's name
-        :param dest: the name of the corresponding ConfigOpts property
-        :param title: title of the sub-commands group in help output
-        :param description: description of the group in help output
-        :param help: a help string giving an overview of available sub-commands
         """
         super(SubCommandOpt, self).__init__(name, type=types.String(),
                                             dest=dest, help=help)
@@ -1398,15 +1473,14 @@ class OptGroup(object):
     .. py:attribute:: help
 
         the group description as displayed in --help
+
+    :param name: the group name
+    :param title: the group title for --help
+    :param help: the group description for --help
     """
 
     def __init__(self, name, title=None, help=None):
-        """Constructs an OptGroup object.
-
-        :param name: the group name
-        :param title: the group title for --help
-        :param help: the group description for --help
-        """
+        """Constructs an OptGroup object."""
         self.name = name
         self.title = "%s options" % name if title is None else title
         self.help = help
@@ -1533,6 +1607,12 @@ class ConfigParser(iniparser.BaseParser):
 
 
 class MultiConfigParser(object):
+    """A ConfigParser which handles multi-opts.
+
+    All methods in this class which accept config names should treat a section
+    name of None as 'DEFAULT'.
+    """
+
     _deprecated_opt_message = ('Option "%s" from group "%s" is deprecated. '
                                'Use option "%s" from group "%s".')
 
@@ -1582,6 +1662,8 @@ class MultiConfigParser(object):
         rvalue = []
 
         def normalize(name):
+            if name is None:
+                name = 'DEFAULT'
             return _normalize_group_name(name) if normalized else name
 
         names = [(normalize(section), name) for section, name in names]
@@ -1615,12 +1697,7 @@ class MultiConfigParser(object):
                     If the name param matches any entries in this list a
                     deprecation warning will be logged.
         """
-        # Opts in the DEFAULT group may come in with a group name of either
-        # 'DEFAULT' or None.  Force them all to 'DEFAULT' since that's a more
-        # user-friendly form.
-        deprecated_names = set((g or 'DEFAULT', n) for (g, n) in deprecated)
-        name = (name[0] or 'DEFAULT', name[1])
-        if name in deprecated_names and name not in self._emitted_deprecations:
+        if name in deprecated and name not in self._emitted_deprecations:
             self._emitted_deprecations.add(name)
             current = (current[0] or 'DEFAULT', current[1])
             # NOTE(bnemec): Not using versionutils for this to avoid a
@@ -2176,11 +2253,12 @@ class ConfigOpts(collections.Mapping):
         :param override: the override value
         :param group: an option OptGroup object or group name
         :param enforce_type: a boolean whether to convert the override
-         value to the option's type
+         value to the option's type, None is *not* converted even
+         if enforce_type is True.
         :raises: NoSuchOptError, NoSuchGroupError
         """
         opt_info = self._get_opt_info(name, group)
-        if enforce_type:
+        if enforce_type and override is not None:
             opt_info['override'] = self._convert_value(override,
                                                        opt_info['opt'])
         else:

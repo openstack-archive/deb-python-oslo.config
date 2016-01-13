@@ -193,8 +193,21 @@ class _OptFormatter(object):
             lines.append(
                 '# This option is deprecated for removal.\n'
                 '# Its value may be silently ignored in the future.\n')
+            if opt.deprecated_reason:
+                lines.extend(
+                    self._format_help('Reason: ' + opt.deprecated_reason))
 
-        defaults = _format_defaults(opt)
+        if hasattr(opt.type, 'format_defaults'):
+            defaults = opt.type.format_defaults(opt.default,
+                                                opt.sample_default)
+        else:
+            LOG.debug(
+                "The type for option %(name)s which is %(type)s is not a "
+                "subclass of types.ConfigType and doesn't provide a "
+                "'format_defaults' method. A default formatter is not "
+                "available so the best-effort formatter will be used.",
+                {'type': opt.type, 'name': opt.name})
+            defaults = _format_defaults(opt)
         for default_str in defaults:
             if default_str:
                 default_str = ' ' + default_str

@@ -19,8 +19,11 @@ Use these classes as values for the `type` argument to
 
 .. versionadded:: 1.3
 """
+import operator
 import re
+import warnings
 
+import abc
 import netaddr
 import six
 
@@ -28,6 +31,32 @@ import six
 class ConfigType(object):
     def __init__(self, type_name='unknown type'):
         self.type_name = type_name
+
+    NONE_DEFAULT = '<None>'
+
+    def format_defaults(self, default, sample_default=None):
+        """Return a list of formatted default values.
+
+        """
+        if sample_default is not None:
+            default_str = sample_default
+        elif default is None:
+            default_str = self.NONE_DEFAULT
+        else:
+            default_str = self._formatter(default)
+        return [default_str]
+
+    def quote_trailing_and_leading_space(self, str_val):
+        if not isinstance(str_val, six.string_types):
+            warnings.warn('converting \'%s\' to a string' % str_val)
+            str_val = six.text_type(str_val)
+        if str_val.strip() != str_val:
+            return '"%s"' % str_val
+        return str_val
+
+    @abc.abstractmethod
+    def _formatter(self, value):
+        pass
 
 
 class String(ConfigType):
@@ -136,15 +165,39 @@ class String(ConfigType):
     def __eq__(self, other):
         return (
             (self.__class__ == other.__class__) and
-            (self.choices == other.choices) and
+            (set(self.choices) == set(other.choices) if
+             self.choices and other.choices else
+             self.choices == other.choices) and
             (self.quotes == other.quotes) and
             (self.regex == other.regex)
         )
 
+    def _formatter(self, value):
+        return self.quote_trailing_and_leading_space(value)
+
 
 class MultiString(String):
+    """Multi-valued string."""
+
     def __init__(self, type_name='multi valued'):
         super(MultiString, self).__init__(type_name=type_name)
+
+    NONE_DEFAULT = ['']
+
+    def format_defaults(self, default, sample_default=None):
+        """Return a list of formatted default values.
+
+        """
+        if sample_default is not None:
+            default_list = self._formatter(sample_default)
+        elif not default:
+            default_list = self.NONE_DEFAULT
+        else:
+            default_list = self._formatter(default)
+        return default_list
+
+    def _formatter(self, value):
+        return [self.quote_trailing_and_leading_space(v) for v in value]
 
 
 class Boolean(ConfigType):
@@ -184,6 +237,9 @@ class Boolean(ConfigType):
     def __eq__(self, other):
         return self.__class__ == other.__class__
 
+    def _formatter(self, value):
+        return str(value).lower()
+
 
 class Integer(ConfigType):
 
@@ -192,23 +248,37 @@ class Integer(ConfigType):
     Converts value to an integer optionally doing range checking.
     If value is whitespace or empty string will return None.
 
-    :param min: Optional check that value is greater than or equal to min
-    :param max: Optional check that value is less than or equal to max
+    :param min: Optional check that value is greater than or equal to min.
+                Mutually exclusive with 'choices'.
+    :param max: Optional check that value is less than or equal to max.
+                Mutually exclusive with 'choices'.
     :param type_name: Type name to be used in the sample config file.
+    :param choices: Optional sequence of valid values. Mutually exclusive
+                    with 'min/max'.
 
     .. versionchanged:: 2.4
        The class now honors zero for *min* and *max* parameters.
 
     .. versionchanged:: 2.7
        Added *type_name* parameter.
+
+    .. versionchanged:: 3.2
+       Added *choices* parameter.
     """
 
-    def __init__(self, min=None, max=None, type_name='integer value'):
+    def __init__(self, min=None, max=None, type_name='integer value',
+                 choices=None):
         super(Integer, self).__init__(type_name=type_name)
+        if choices is not None:
+            if min is not None or max is not None:
+                raise ValueError("'choices' and 'min/max' cannot both be "
+                                 "specified")
+        else:
+            if min is not None and max is not None and max < min:
+                raise ValueError('Max value is less than min value')
         self.min = min
         self.max = max
-        if min is not None and max is not None and max < min:
-            raise ValueError('Max value is less than min value')
+        self.choices = choices
 
     def __call__(self, value):
         if not isinstance(value, int):
@@ -219,9 +289,19 @@ class Integer(ConfigType):
                 value = int(value)
 
         if value is not None:
-            self._check_range(value)
+            if self.choices is not None:
+                self._check_choices(value)
+            else:
+                self._check_range(value)
 
         return value
+
+    def _check_choices(self, value):
+        if value in self.choices:
+            return
+        else:
+            raise ValueError('Valid values are %r, but found %d' % (
+                             self.choices, value))
 
     def _check_range(self, value):
         if self.min is not None and value < self.min:
@@ -232,10 +312,13 @@ class Integer(ConfigType):
 
     def __repr__(self):
         props = []
-        if self.min is not None:
-            props.append('min=%d' % self.min)
-        if self.max is not None:
-            props.append('max=%d' % self.max)
+        if self.choices is not None:
+            props.append("choices=%r" % (self.choices,))
+        else:
+            if self.min is not None:
+                props.append('min=%d' % self.min)
+            if self.max is not None:
+                props.append('max=%d' % self.max)
 
         if props:
             return 'Integer(%s)' % ', '.join(props)
@@ -245,8 +328,14 @@ class Integer(ConfigType):
         return (
             (self.__class__ == other.__class__) and
             (self.min == other.min) and
-            (self.max == other.max)
+            (self.max == other.max) and
+            (set(self.choices) == set(other.choices) if
+             self.choices and other.choices else
+             self.choices == other.choices)
         )
+
+    def _formatter(self, value):
+        return str(value)
 
 
 class Float(ConfigType):
@@ -274,6 +363,9 @@ class Float(ConfigType):
 
     def __eq__(self, other):
         return self.__class__ == other.__class__
+
+    def _formatter(self, value):
+        return str(value)
 
 
 class List(ConfigType):
@@ -353,6 +445,9 @@ class List(ConfigType):
             (self.__class__ == other.__class__) and
             (self.item_type == other.item_type)
         )
+
+    def _formatter(self, value):
+        return ','.join(value)
 
 
 class Dict(ConfigType):
@@ -447,6 +542,11 @@ class Dict(ConfigType):
             (self.value_type == other.value_type)
         )
 
+    def _formatter(self, value):
+        sorted_items = sorted(value.items(),
+                              key=operator.itemgetter(0))
+        return ','.join(['%s:%s' % i for i in sorted_items])
+
 
 class IPAddress(ConfigType):
 
@@ -463,7 +563,7 @@ class IPAddress(ConfigType):
        Added *type_name* parameter.
     """
 
-    def __init__(self, version=None, type_name='ip address value'):
+    def __init__(self, version=None, type_name='IP address value'):
         super(IPAddress, self).__init__(type_name=type_name)
         version_checkers = {
             None: self._check_both_versions,
@@ -500,3 +600,6 @@ class IPAddress(ConfigType):
         if not (netaddr.valid_ipv4(address, netaddr.core.INET_PTON) or
                 netaddr.valid_ipv6(address, netaddr.core.INET_PTON)):
             raise ValueError("%s is not IPv4 or IPv6 address" % address)
+
+    def _formatter(self, value):
+        return value

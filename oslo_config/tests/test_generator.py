@@ -84,6 +84,13 @@ class GeneratorTestCase(base.BaseTestCase):
                                      help='deprecated'),
         'deprecated_for_removal_opt': cfg.StrOpt(
             'bar', deprecated_for_removal=True, help='deprecated for removal'),
+        'deprecated_reason_opt': cfg.BoolOpt(
+            'turn_off_stove',
+            default=False,
+            deprecated_for_removal=True,
+            deprecated_reason='This was supposed to work but it really, '
+                              'really did not. Always buy house insurance.',
+            help='Turn off stove'),
         'deprecated_group': cfg.StrOpt('bar',
                                        deprecated_group='group1',
                                        deprecated_name='foobar',
@@ -137,6 +144,12 @@ class GeneratorTestCase(base.BaseTestCase):
                                                     default=['1', '2', '3'],
                                                     sample_default=['5', '6'],
                                                     help='multiple strings'),
+        'string_type_with_bad_default': cfg.Opt('string_type_with_bad_default',
+                                                help='string with bad default',
+                                                default=4096),
+        'custom_type': cfg.Opt('custom_type',
+                               help='custom help',
+                               type=type('string')),
         'custom_type_name': cfg.Opt('custom_opt_type',
                                     type=types.Integer(type_name='port'
                                                        ' number'),
@@ -406,6 +419,26 @@ class GeneratorTestCase(base.BaseTestCase):
 # Its value may be silently ignored in the future.
 #bar = <None>
 ''')),
+        ('deprecated_reason',
+         dict(opts=[('test', [(groups['foo'],
+                              [opts['deprecated_reason_opt']])])],
+              expected='''[DEFAULT]
+
+
+[foo]
+# foo help
+
+#
+# From test
+#
+
+# Turn off stove (boolean value)
+# This option is deprecated for removal.
+# Its value may be silently ignored in the future.
+# Reason: This was supposed to work but it really, really did not.
+# Always buy house insurance.
+#turn_off_stove = false
+''')),
         ('deprecated_group',
          dict(opts=[('test', [(groups['foo'], [opts['deprecated_group']])])],
               expected='''[DEFAULT]
@@ -424,8 +457,6 @@ class GeneratorTestCase(base.BaseTestCase):
 ''')),
         ('unknown_type',
          dict(opts=[('test', [(None, [opts['unknown_type']])])],
-              log_warning=('Unknown option type: %s',
-                           repr(opts['unknown_type'])),
               expected='''[DEFAULT]
 
 #
@@ -522,7 +553,7 @@ class GeneratorTestCase(base.BaseTestCase):
 # From test
 #
 
-# an ip address (ip address value)
+# an ip address (IP address value)
 #ip_opt = 127.0.0.1
 ''')),
         ('port_opt',
@@ -598,8 +629,6 @@ class GeneratorTestCase(base.BaseTestCase):
 ''')),
         ('custom_type_name',
          dict(opts=[('test', [(None, [opts['custom_type_name']])])],
-              log_warning=('Unknown option type: %s',
-                           repr(opts['custom_type_name'])),
               expected='''[DEFAULT]
 
 #
@@ -608,6 +637,29 @@ class GeneratorTestCase(base.BaseTestCase):
 
 # this is a port (port number)
 #custom_opt_type = 5511
+''')),
+        ('custom_type',
+         dict(opts=[('test', [(None, [opts['custom_type']])])],
+              expected='''[DEFAULT]
+
+#
+# From test
+#
+
+# custom help (unknown value)
+#custom_type = <None>
+''')),
+        ('string_type_with_bad_default',
+         dict(opts=[('test', [(None,
+                               [opts['string_type_with_bad_default']])])],
+              expected='''[DEFAULT]
+
+#
+# From test
+#
+
+# string with bad default (string value)
+#string_type_with_bad_default = 4096
 ''')),
     ]
 

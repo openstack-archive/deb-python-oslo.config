@@ -2641,6 +2641,22 @@ class OverridesTestCase(BaseTestCase):
         self.conf.clear_override('foo')
         self.assertIsNone(self.conf.foo)
 
+    def test_enforce_type_int_override_with_None(self):
+        self.conf.register_opt(cfg.IntOpt('foo'))
+        self.conf.set_override('foo', None, enforce_type=True)
+        self.conf([])
+        self.assertIsNone(self.conf.foo)
+        self.conf.clear_override('foo')
+        self.assertIsNone(self.conf.foo)
+
+    def test_enforce_type_str_override_with_None(self):
+        self.conf.register_opt(cfg.StrOpt('foo'))
+        self.conf.set_override('foo', None, enforce_type=True)
+        self.conf([])
+        self.assertIsNone(self.conf.foo)
+        self.conf.clear_override('foo')
+        self.assertIsNone(self.conf.foo)
+
 
 class ResetAndClearTestCase(BaseTestCase):
 
@@ -3206,6 +3222,8 @@ class MultiConfigParserTestCase(BaseTestCase):
                          ['bar'])
         self.assertEqual(parser.get([('DEFAULT', 'foo')], multi=True),
                          ['bar'])
+        self.assertEqual(parser.get([(None, 'foo')], multi=True),
+                         ['bar'])
         self.assertEqual(parser._get([('DEFAULT', 'foo')],
                                      multi=True, normalized=True),
                          ['bar'])
@@ -3714,6 +3732,81 @@ class ChoicesTestCase(BaseTestCase):
                           choices=['baar', 'baaar'], default='foobaz')
 
 
+class PortChoicesTestCase(BaseTestCase):
+
+    def test_choice_default(self):
+        self.conf.register_cli_opt(cfg.PortOpt('port',
+                                   default=455,
+                                   choices=[80, 455]))
+        self.conf([])
+        self.assertEqual(self.conf.port, 455)
+
+    def test_choice_good_with_list(self):
+        self.conf.register_cli_opt(cfg.PortOpt('port',
+                                   choices=[80, 8080]))
+        self.conf(['--port', '80'])
+        self.assertEqual(self.conf.port, 80)
+
+    def test_choice_good_with_tuple(self):
+        self.conf.register_cli_opt(cfg.PortOpt('port',
+                                   choices=(80, 8080)))
+        self.conf(['--port', '80'])
+        self.assertEqual(self.conf.port, 80)
+
+    def test_choice_bad(self):
+        self.conf.register_cli_opt(cfg.PortOpt('port',
+                                   choices=[80, 8080]))
+        self.assertRaises(SystemExit, self.conf, ['--port', '8181'])
+
+    def test_choice_out_range(self):
+        self.assertRaisesRegexp(ValueError, 'values 65537, 0 should',
+                                cfg.PortOpt, 'port', choices=[80, 65537, 0])
+
+    def test_conf_file_choice_value(self):
+        self.conf.register_opt(cfg.PortOpt('port',
+                               choices=[80, 8080]))
+
+        paths = self.create_tempfiles([('test', '[DEFAULT]\n''port = 80\n')])
+
+        self.conf(['--config-file', paths[0]])
+
+        self.assertTrue(hasattr(self.conf, 'port'))
+        self.assertEqual(self.conf.port, 80)
+
+    def test_conf_file_bad_choice_value(self):
+        self.conf.register_opt(cfg.PortOpt('port',
+                               choices=[80, 8080]))
+
+        paths = self.create_tempfiles([('test', '[DEFAULT]\n''port = 8181\n')])
+
+        self.conf(['--config-file', paths[0]])
+
+        self.assertRaises(cfg.ConfigFileValueError, self.conf._get, 'port')
+        self.assertRaises(ValueError, getattr, self.conf, 'port')
+
+    def test_conf_file_choice_value_override(self):
+        self.conf.register_cli_opt(cfg.PortOpt('port',
+                                   choices=[80, 8080]))
+
+        paths = self.create_tempfiles([('1',
+                                        '[DEFAULT]\n'
+                                        'port = 80\n'),
+                                       ('2',
+                                        '[DEFAULT]\n'
+                                        'port = 8080\n')])
+
+        self.conf(['--port', '80',
+                   '--config-file', paths[0],
+                   '--config-file', paths[1]])
+
+        self.assertTrue(hasattr(self.conf, 'port'))
+        self.assertEqual(self.conf.port, 8080)
+
+    def test_conf_file_choice_bad_default(self):
+        self.assertRaises(cfg.DefaultValueError, cfg.PortOpt, 'port',
+                          choices=[80, 8080], default=8181)
+
+
 class RegexTestCase(BaseTestCase):
 
     def test_regex_good(self):
@@ -3980,23 +4073,12 @@ class DeprecationWarningTests(DeprecationWarningTestBase):
         self.assertIn('Option "baz" from group "other"',
                       self.log_fixture.output)
 
-    def test_check_deprecated_default_none(self):
+    def test_check_deprecated(self):
         parser = self._parser_class()
-        deprecated_list = [(None, 'bar')]
+        deprecated_list = [('DEFAULT', 'bar')]
         parser._check_deprecated(('DEFAULT', 'bar'), (None, 'foo'),
                                  deprecated_list)
         self.assert_message_logged('bar', 'DEFAULT', 'foo', 'DEFAULT')
-        # Make sure check_deprecated didn't modify the list passed in
-        self.assertEqual([(None, 'bar')], deprecated_list)
-
-    def test_check_deprecated_none_default(self):
-        parser = self._parser_class()
-        deprecated_list = [('DEFAULT', 'bar')]
-        parser._check_deprecated((None, 'bar'), ('DEFAULT', 'foo'),
-                                 deprecated_list)
-        self.assert_message_logged('bar', 'DEFAULT', 'foo', 'DEFAULT')
-        # Make sure check_deprecated didn't modify the list passed in
-        self.assertEqual([('DEFAULT', 'bar')], deprecated_list)
 
     def assert_message_logged(self, deprecated_name, deprecated_group,
                               current_name, current_group):
