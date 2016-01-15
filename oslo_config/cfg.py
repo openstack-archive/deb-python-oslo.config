@@ -642,7 +642,7 @@ class Opt(object):
     :param name: the option's name
     :param type: the option's type. Must be a callable object that takes string
                  and returns converted and validated value
-    :param dest: the name of the corresponding ConfigOpts property
+    :param dest: the name of the corresponding :class:`.ConfigOpts` property
     :param short: a single character CLI option name
     :param default: the default value of the option
     :param positional: True if the option is a positional CLI argument
@@ -652,7 +652,7 @@ class Opt(object):
     :param required: true if a value must be supplied for this option
     :param deprecated_name: deprecated name option.  Acts like an alias
     :param deprecated_group: the group containing a deprecated alias
-    :param deprecated_opts: array of DeprecatedOpt(s)
+    :param deprecated_opts: list of :class:`.DeprecatedOpt`
     :param sample_default: a default string for sample config files
     :param deprecated_for_removal: indicates whether this opt is planned for
                                    removal in a future release
@@ -674,7 +674,8 @@ class Opt(object):
 
     .. py:attribute:: dest
 
-        the (hyphen-less) ConfigOpts property which contains the option value
+        the (hyphen-less) :class:`.ConfigOpts` property which contains the
+        option value
 
     .. py:attribute:: short
 
@@ -710,8 +711,10 @@ class Opt(object):
        Added *deprecated_for_removal* parameter.
 
     .. versionchanged:: 2.7
-
        An exception is now raised if the default value has the wrong type.
+
+    .. versionchanged:: 3.2
+       Added *deprecated_reason* parameter.
     """
     multi = False
 
@@ -842,6 +845,7 @@ class Opt(object):
         :param kwargs: the keyword arguments for add_argument()
         :param prefix: an optional prefix to prepend to the opt name
         :param positional: whether the option is a positional CLI argument
+        :param deprecated_names: list of deprecated option names
         """
         def hyphen(arg):
             return arg if not positional else ''
@@ -873,7 +877,7 @@ class Opt(object):
         options added to argparse.
 
         :param group: an optional group
-        :param kwargs: optional keyword arguments to add to
+        :param \*\*kwargs: optional keyword arguments to add to
         :returns: a dict of keyword arguments
         """
         if not self.positional:
@@ -1307,7 +1311,7 @@ class SubCommandOpt(Opt):
     sub-parser arguments available as additional attributes.
 
     :param name: the option's name
-    :param dest: the name of the corresponding ConfigOpts property
+    :param dest: the name of the corresponding :class:`.ConfigOpts` property
     :param handler: callable which is supplied subparsers object when invoked
     :param title: title of the sub-commands group in help output
     :param description: description of the group in help output
@@ -1658,6 +1662,7 @@ class MultiConfigParser(object):
         :param names: a list of (section, name) tuples
         :param multi: a boolean indicating whether to return multiple values
         :param normalized: whether to normalize group names to lowercase
+        :param current_name: current name in tuple being checked
         """
         rvalue = []
 
@@ -1834,6 +1839,7 @@ class _Namespace(argparse.Namespace):
         :param names: a list of (section, name) tuples
         :param multi: a boolean indicating whether to return multiple values
         :param positional: whether this is a positional option
+        :param current_name: current name in tuple being checked
         """
         try:
             return self._get_cli_value(names, positional)
@@ -2109,8 +2115,8 @@ class ConfigOpts(collections.Mapping):
         as an attribute of this object.
 
         :param opt: an instance of an Opt sub-class
-        :param cli: whether this is a CLI option
         :param group: an optional OptGroup object or group name
+        :param cli: whether this is a CLI option
         :return: False if the opt was already registered, True otherwise
         :raises: DuplicateOptError
         """
@@ -2367,7 +2373,8 @@ class ConfigOpts(collections.Mapping):
         logger.log(lvl, "*" * 80)
         logger.log(lvl, "Configuration options gathered from:")
         logger.log(lvl, "command line args: %s", self._args)
-        logger.log(lvl, "config files: %s", self.config_file)
+        logger.log(lvl, "config files: %s",
+                   hasattr(self, 'config_file') and self.config_file or [])
         logger.log(lvl, "=" * 80)
 
         def _sanitize(opt, value):
@@ -2671,12 +2678,12 @@ class ConfigOpts(collections.Mapping):
             self._check_required_opts(namespace)
 
         except SystemExit as exc:
-            LOG.warn("Caught SystemExit while reloading configure files "
-                     "with exit code: %d", exc.code)
+            LOG.warning("Caught SystemExit while reloading configure files "
+                        "with exit code: %d", exc.code)
             return False
         except Error as err:
-            LOG.warn("Caught Error while reloading configure files: %s",
-                     err)
+            LOG.warning("Caught Error while reloading configure files: %s",
+                        err)
             return False
         else:
             self._namespace = namespace
@@ -2774,10 +2781,13 @@ class ConfigOpts(collections.Mapping):
             """Construct a StrSubWrapper object.
 
             :param conf: a ConfigOpts object
+            :param group: an OptGroup object
+            :param namespace: the namespace object that retrieves the option
+                              value from
             """
             self.conf = conf
-            self.namespace = namespace
             self.group = group
+            self.namespace = namespace
 
         def __getitem__(self, key):
             """Look up an opt value from the ConfigOpts object.

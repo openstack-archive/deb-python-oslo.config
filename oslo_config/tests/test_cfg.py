@@ -887,7 +887,7 @@ class ConfigFileOptsTestCase(BaseTestCase):
         self.conf(['--config-file', paths[0]])
 
         self.assertTrue(hasattr(self.conf, 'foo'))
-        self.assertEqual(self.conf.foo, False)
+        self.assertFalse(self.conf.foo)
 
     def test_conf_file_bool_value(self):
         self.conf.register_opt(cfg.BoolOpt('foo'))
@@ -899,7 +899,7 @@ class ConfigFileOptsTestCase(BaseTestCase):
         self.conf(['--config-file', paths[0]])
 
         self.assertTrue(hasattr(self.conf, 'foo'))
-        self.assertEqual(self.conf.foo, True)
+        self.assertTrue(self.conf.foo)
 
     def test_conf_file_bool_cli_value_override(self):
         self.conf.register_cli_opt(cfg.BoolOpt('foo'))
@@ -912,7 +912,7 @@ class ConfigFileOptsTestCase(BaseTestCase):
                    '--config-file', paths[0]])
 
         self.assertTrue(hasattr(self.conf, 'foo'))
-        self.assertEqual(self.conf.foo, False)
+        self.assertFalse(self.conf.foo)
 
     def test_conf_file_bool_cli_inverse_override(self):
         self.conf.register_cli_opt(cfg.BoolOpt('foo'))
@@ -925,7 +925,7 @@ class ConfigFileOptsTestCase(BaseTestCase):
                    '--config-file', paths[0]])
 
         self.assertTrue(hasattr(self.conf, 'foo'))
-        self.assertEqual(self.conf.foo, True)
+        self.assertTrue(self.conf.foo)
 
     def test_conf_file_bool_cli_order_override(self):
         self.conf.register_cli_opt(cfg.BoolOpt('foo'))
@@ -938,7 +938,7 @@ class ConfigFileOptsTestCase(BaseTestCase):
                    '--foo'])
 
         self.assertTrue(hasattr(self.conf, 'foo'))
-        self.assertEqual(self.conf.foo, True)
+        self.assertTrue(self.conf.foo)
 
     def test_conf_file_bool_file_value_override(self):
         self.conf.register_cli_opt(cfg.BoolOpt('foo'))
@@ -954,7 +954,7 @@ class ConfigFileOptsTestCase(BaseTestCase):
                    '--config-file', paths[1]])
 
         self.assertTrue(hasattr(self.conf, 'foo'))
-        self.assertEqual(self.conf.foo, True)
+        self.assertTrue(self.conf.foo)
 
     def test_conf_file_bool_use_dname(self):
         self._do_dname_test_use(cfg.BoolOpt, 'yes', True)
@@ -2637,7 +2637,7 @@ class OverridesTestCase(BaseTestCase):
         self.conf.register_opt(cfg.BoolOpt('foo'))
         self.conf.set_override('foo', 'True', enforce_type=True)
         self.conf([])
-        self.assertEqual(self.conf.foo, True)
+        self.assertTrue(self.conf.foo)
         self.conf.clear_override('foo')
         self.assertIsNone(self.conf.foo)
 
@@ -3117,7 +3117,7 @@ class OptDumpingTestCase(BaseTestCase):
 
         self.conf.log_opt_values(logger, 666)
 
-        self.assertEqual(logger.logged, [
+        self.assertEqual([
                          "*" * 80,
                          "Configuration options gathered from:",
                          "command line args: ['--foo', 'this', '--blaa-bar', "
@@ -3131,7 +3131,7 @@ class OptDumpingTestCase(BaseTestCase):
                          "blaa.bar                       = that",
                          "blaa.key                       = ****",
                          "*" * 80,
-                         ])
+                         ], logger.logged)
 
     def test_log_opt_values(self):
         self._do_test_log_opt_values(self._args)
@@ -3139,6 +3139,21 @@ class OptDumpingTestCase(BaseTestCase):
     def test_log_opt_values_from_sys_argv(self):
         self.useFixture(fixtures.MonkeyPatch('sys.argv', ['foo'] + self._args))
         self._do_test_log_opt_values(None)
+
+    def test_log_opt_values_empty_config(self):
+        empty_conf = cfg.ConfigOpts()
+
+        logger = self.FakeLogger(self, 666)
+
+        empty_conf.log_opt_values(logger, 666)
+        self.assertEqual([
+                         "*" * 80,
+                         "Configuration options gathered from:",
+                         "command line args: None",
+                         "config files: []",
+                         "=" * 80,
+                         "*" * 80,
+                         ], logger.logged)
 
 
 class ConfigParserTestCase(BaseTestCase):
@@ -3696,7 +3711,7 @@ class ChoicesTestCase(BaseTestCase):
         self.conf(['--config-file', paths[0]])
 
         self.assertTrue(hasattr(self.conf, 'foo'))
-        self.assertEqual(self.conf.foo, None)
+        self.assertIsNone(self.conf.foo)
 
     def test_conf_file_bad_choice_value(self):
         self.conf.register_opt(cfg.StrOpt('foo',
@@ -4101,7 +4116,7 @@ class DeprecationWarningTests(DeprecationWarningTestBase):
         self.assertEqual('bar', self.conf.foo)
         self.assertEqual('bar', self.conf.foo)
         # Options not set in the config should not be logged.
-        self.assertEqual(None, self.conf.bar)
+        self.assertIsNone(self.conf.bar)
         expected = ('Option "foo" from group "DEFAULT" is deprecated for '
                     'removal.  Its value may be silently ignored in the '
                     'future.\n')
@@ -4123,7 +4138,7 @@ class DeprecationWarningTests(DeprecationWarningTestBase):
         self.assertEqual('bar', self.conf.other.foo)
         self.assertEqual('bar', self.conf.other.foo)
         # Options not set in the config should not be logged.
-        self.assertEqual(None, self.conf.other.bar)
+        self.assertIsNone(self.conf.other.bar)
         expected = ('Option "foo" from group "other" is deprecated for '
                     'removal.  Its value may be silently ignored in the '
                     'future.\n')

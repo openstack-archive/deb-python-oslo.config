@@ -743,6 +743,32 @@ class GeneratorTestCase(base.BaseTestCase):
             self.assertFalse(mock_log.warning.called)
 
 
+class IgnoreDoublesTestCase(base.BaseTestCase):
+
+    @mock.patch('stevedore.named.NamedExtensionManager')
+    def test_list_ignores_doubles(self, named_mgr):
+        config_opts = [cfg.StrOpt('foo'),
+                       cfg.StrOpt('bar'),
+                       ]
+        mock_ep1 = mock.Mock()
+        mock_ep1.configure_mock(name="namespace",
+                                obj=[("group", config_opts)])
+        mock_ep2 = mock.Mock()
+        mock_ep2.configure_mock(name="namespace",
+                                obj=[("group", config_opts)])
+        # These are the very same config options, but read twice.
+        # This is possible if one misconfigures the entry point for the
+        # sample config generator.
+        mock_eps = [mock_ep1, mock_ep2]
+        named_mgr.return_value = mock_eps
+
+        slurped_opts = 0
+        for _, listing in generator._list_opts(None):
+            for _, opts in listing:
+                slurped_opts += len(opts)
+        self.assertEqual(len(config_opts), slurped_opts)
+
+
 class GeneratorRaiseErrorTestCase(base.BaseTestCase):
 
     def test_generator_raises_error(self):
@@ -767,6 +793,11 @@ class GeneratorRaiseErrorTestCase(base.BaseTestCase):
         fake_eps = mock.Mock(return_value=[fake_ep])
         with mock.patch('pkg_resources.iter_entry_points', fake_eps):
             self.assertRaises(FakeException, generator.generate, self.conf)
+
+    def test_generator_call_with_no_arguments_raises_error(self):
+        testargs = ['oslo-config-generator']
+        with mock.patch('sys.argv', testargs):
+            self.assertRaises(cfg.RequiredOptError, generator.main, [])
 
 
 GeneratorTestCase.generate_scenarios()
