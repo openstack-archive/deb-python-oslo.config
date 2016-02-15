@@ -1,9 +1,12 @@
-python-oslo.config (1:2.4.0-4) UNRELEASED; urgency=medium
+python-oslo.config (1:2.4.0-4) unstable; urgency=medium
 
-  * d/copyright: Fix wrong value of Upstream-Name field.
-    (LP#1493101)
+  [ Ivan Udovichenko ]
+  * d/copyright: Fix wrong value of Upstream-Name field. (LP: #1493101)
 
- -- Ivan Udovichenko <iudovichenko@mirantis.com>  Fri, 25 Dec 2015 14:37:15 +0200
+  [ Thomas Goirand ]
+  * Removed argparse from requirements.txt.
+
+ -- Thomas Goirand <zigo@debian.org>  Mon, 15 Feb 2016 02:42:27 +0000
 
 python-oslo.config (1:2.4.0-3) unstable; urgency=medium
 
