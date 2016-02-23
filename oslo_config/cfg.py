@@ -58,6 +58,7 @@ Type                                  Option
 :class:`oslo_config.types.List`       :class:`oslo_config.cfg.ListOpt`
 :class:`oslo_config.types.Dict`       :class:`oslo_config.cfg.DictOpt`
 :class:`oslo_config.types.IPAddress`  :class:`oslo_config.cfg.IPOpt`
+:class:`oslo_config.types.Hostname`   :class:`oslo_config.cfg.HostnameOpt`
 ====================================  ======
 
 For :class:`oslo_config.cfg.MultiOpt` the `item_type` parameter defines
@@ -361,6 +362,7 @@ command line arguments using the SubCommandOpt class:
 import argparse
 import collections
 import copy
+from debtcollector import removals
 import errno
 import functools
 import glob
@@ -659,6 +661,7 @@ class Opt(object):
     :param deprecated_reason: indicates why this opt is planned for removal in
                               a future release. Silently ignored if
                               deprecated_for_removal is False
+    :param mutable: True if this option may be reloaded
 
     An Opt object has no public methods, but has a number of public properties:
 
@@ -715,6 +718,9 @@ class Opt(object):
 
     .. versionchanged:: 3.2
        Added *deprecated_reason* parameter.
+
+    .. versionchanged:: 3.5
+       Added *mutable* parameter.
     """
     multi = False
 
@@ -723,7 +729,8 @@ class Opt(object):
                  secret=False, required=False,
                  deprecated_name=None, deprecated_group=None,
                  deprecated_opts=None, sample_default=None,
-                 deprecated_for_removal=False, deprecated_reason=None):
+                 deprecated_for_removal=False, deprecated_reason=None,
+                 mutable=False):
         if name.startswith('_'):
             raise ValueError('illegal name %s with prefix _' % (name,))
         self.name = name
@@ -758,6 +765,8 @@ class Opt(object):
             self.deprecated_opts.append(DeprecatedOpt(deprecated_name,
                                                       group=deprecated_group))
         self._check_default()
+
+        self.mutable = mutable
 
     def _default_is_ref(self):
         """Check if default is a reference to another var."""
@@ -800,8 +809,9 @@ class Opt(object):
                 names.append((dgroup if dgroup else group_name,
                               dname if dname else self.dest))
 
-        value = namespace._get_value(names, self.multi, self.positional,
-                                     current_name)
+        value = namespace._get_value(
+            names, multi=self.multi,
+            positional=self.positional, current_name=current_name)
         # The previous line will raise a KeyError if no value is set in the
         # config file, so we'll only log deprecations for set options.
         if self.deprecated_for_removal and not self._logged_deprecation:
@@ -1203,7 +1213,7 @@ class IPOpt(Opt):
 
 class PortOpt(Opt):
 
-    """Option for a TCP/IP port number.  Ports can range from 1 to 65535.
+    """Option for a TCP/IP port number.  Ports can range from 0 to 65535.
 
     Option with ``type`` :class:`oslo_config.types.Integer`
 
@@ -1214,8 +1224,10 @@ class PortOpt(Opt):
     .. versionadded:: 2.6
     .. versionchanged:: 3.2
        Added *choices* parameter.
+    .. versionchanged:: 3.4
+       Allow port number with 0.
     """
-    PORT_MIN = 1
+    PORT_MIN = 0
     PORT_MAX = 65535
 
     def __init__(self, name, choices=None, **kwargs):
@@ -1238,6 +1250,20 @@ class PortOpt(Opt):
             type = types.Integer(min=self.PORT_MIN, max=self.PORT_MAX,
                                  type_name='port value')
         super(PortOpt, self).__init__(name, type=type, **kwargs)
+
+
+class HostnameOpt(Opt):
+
+    """Option for a hostname.  Only accepts valid hostnames.
+
+    Option with ``type`` :class:`oslo_config.types.Hostname`
+
+    .. versionadded:: 3.8
+    """
+
+    def __init__(self, name, **kwargs):
+        super(HostnameOpt, self).__init__(name, type=types.Hostname(),
+                                          **kwargs)
 
 
 class MultiOpt(Opt):
@@ -1432,6 +1458,7 @@ class _ConfigDirOpt(Opt):
             :raises: ConfigFileParseError, ConfigFileValueError,
                      ConfigDirNotFoundError
             """
+            namespace._config_dirs.append(values)
             setattr(namespace, self.dest, values)
 
             values = os.path.expanduser(values)
@@ -1445,7 +1472,7 @@ class _ConfigDirOpt(Opt):
                 ConfigParser._parse_file(config_file, namespace)
 
     def __init__(self, name, **kwargs):
-        super(_ConfigDirOpt, self).__init__(name, type=types.String(),
+        super(_ConfigDirOpt, self).__init__(name, type=types.List(),
                                             **kwargs)
 
     def _get_argparse_kwargs(self, group, **kwargs):
@@ -1538,6 +1565,15 @@ class ParseError(iniparser.ParseError):
 
 
 class ConfigParser(iniparser.BaseParser):
+    """Parses a single config file, populating 'sections' to look like:
+
+        {'DEFAULT': {'key': [value, ...], ...},
+         ...}
+
+       Also populates self._normalized which looks the same but with normalized
+       section names.
+    """
+
     def __init__(self, filename, sections):
         super(ConfigParser, self).__init__()
         self.filename = filename
@@ -1608,13 +1644,20 @@ class ConfigParser(iniparser.BaseParser):
             raise
 
         namespace._add_parsed_config_file(sections, normalized)
+        namespace._parse_cli_opts_from_config_file(sections, normalized)
 
 
+@removals.remove(version='3.4', removal_version='4.0')
 class MultiConfigParser(object):
     """A ConfigParser which handles multi-opts.
 
     All methods in this class which accept config names should treat a section
     name of None as 'DEFAULT'.
+
+    This class was deprecated in Mitaka and should be removed in Ocata.
+    _Namespace holds values, ConfigParser._parse_file reads one file into a
+    _Namespace and ConfigOpts._parse_config_files reads multiple files into a
+    _Namespace.
     """
 
     _deprecated_opt_message = ('Option "%s" from group "%s" is deprecated. '
@@ -1713,7 +1756,6 @@ class MultiConfigParser(object):
 
 
 class _Namespace(argparse.Namespace):
-
     """An argparse namespace which also stores config file values.
 
     As we parse command line arguments, the values get set as attributes
@@ -1727,11 +1769,17 @@ class _Namespace(argparse.Namespace):
     or convert a config file value at this point.
     """
 
+    _deprecated_opt_message = ('Option "%s" from group "%s" is deprecated. '
+                               'Use option "%s" from group "%s".')
+
     def __init__(self, conf):
         self._conf = conf
-        self._parser = MultiConfigParser()
+        self._parsed = []
+        self._normalized = []
+        self._emitted_deprecations = set()
         self._files_not_found = []
         self._files_permission_denied = []
+        self._config_dirs = []
 
     def _parse_cli_opts_from_config_file(self, sections, normalized):
         """Parse CLI options from a config file.
@@ -1756,7 +1804,7 @@ class _Namespace(argparse.Namespace):
         override values found in this file.
         """
         namespace = _Namespace(self._conf)
-        namespace._parser._add_parsed_config_file(sections, normalized)
+        namespace._add_parsed_config_file(sections, normalized)
 
         for opt, group in self._conf._all_cli_opts():
             group_name = group.name if group is not None else None
@@ -1789,8 +1837,8 @@ class _Namespace(argparse.Namespace):
         :param normalized: sections mapping with section names normalized
         :raises: ConfigFileValueError
         """
-        self._parse_cli_opts_from_config_file(sections, normalized)
-        self._parser._add_parsed_config_file(sections, normalized)
+        self._parsed.insert(0, sections)
+        self._normalized.insert(0, normalized)
 
     def _file_not_found(self, config_file):
         """Record that we were unable to open a config file.
@@ -1806,7 +1854,7 @@ class _Namespace(argparse.Namespace):
         """
         self._files_permission_denied.append(config_file)
 
-    def _get_cli_value(self, names, positional):
+    def _get_cli_value(self, names, positional=False):
         """Fetch a CLI option value.
 
         Look up the value of a CLI option. The value itself may have come from
@@ -1829,7 +1877,64 @@ class _Namespace(argparse.Namespace):
 
         raise KeyError
 
-    def _get_value(self, names, multi, positional, current_name):
+    def _get_file_value(
+            self, names, multi=False, normalized=False, current_name=None):
+        """Fetch a config file value from the parsed files.
+
+        :param names: a list of (section, name) tuples
+        :param multi: a boolean indicating whether to return multiple values
+        :param normalized: whether to normalize group names to lowercase
+        :param current_name: current name in tuple being checked
+        """
+        rvalue = []
+
+        def normalize(name):
+            if name is None:
+                name = 'DEFAULT'
+            return _normalize_group_name(name) if normalized else name
+
+        names = [(normalize(section), name) for section, name in names]
+
+        for sections in (self._normalized if normalized else self._parsed):
+            for section, name in names:
+                if section not in sections:
+                    continue
+                if name in sections[section]:
+                    current_name = current_name or names[0]
+                    self._check_deprecated((section, name), current_name,
+                                           names[1:])
+                    val = sections[section][name]
+                    if multi:
+                        rvalue = val + rvalue
+                    else:
+                        return val
+        if multi and rvalue != []:
+            return rvalue
+        raise KeyError
+
+    def _check_deprecated(self, name, current, deprecated):
+        """Check for usage of deprecated names.
+
+        :param name: A tuple of the form (group, name) representing the group
+                     and name where an opt value was found.
+        :param current: A tuple of the form (group, name) representing the
+                        current name for an option.
+        :param deprecated: A list of tuples with the same format as the name
+                    param which represent any deprecated names for an option.
+                    If the name param matches any entries in this list a
+                    deprecation warning will be logged.
+        """
+        if name in deprecated and name not in self._emitted_deprecations:
+            self._emitted_deprecations.add(name)
+            current = (current[0] or 'DEFAULT', current[1])
+            # NOTE(bnemec): Not using versionutils for this to avoid a
+            # circular dependency between oslo.config and whatever library
+            # versionutils ends up in.
+            LOG.warning(self._deprecated_opt_message, name[1],
+                        name[0], current[1], current[0])
+
+    def _get_value(self, names, multi=False, positional=False,
+                   current_name=None, normalized=True):
         """Fetch a value from config files.
 
         Multiple names for a given configuration option may be supplied so
@@ -1837,17 +1942,23 @@ class _Namespace(argparse.Namespace):
         names or groups.
 
         :param names: a list of (section, name) tuples
-        :param multi: a boolean indicating whether to return multiple values
         :param positional: whether this is a positional option
-        :param current_name: current name in tuple being checked
+        :param multi: a boolean indicating whether to return multiple values
+        :param normalized: whether to normalize group names to lowercase
         """
         try:
             return self._get_cli_value(names, positional)
         except KeyError:
             names = [(g if g is not None else 'DEFAULT', n) for g, n in names]
-            values = self._parser._get(names, multi=multi, normalized=True,
-                                       current_name=current_name)
+            values = self._get_file_value(
+                names, multi=multi, normalized=normalized,
+                current_name=current_name)
             return values if multi else values[-1]
+
+    def _sections(self):
+        for sections in self._parsed:
+            for section in sections:
+                yield section
 
 
 class _CachedArgumentParser(argparse.ArgumentParser):
@@ -1915,6 +2026,10 @@ class ConfigOpts(collections.Mapping):
     ConfigOpts is a configuration option manager with APIs for registering
     option schemas, grouping options, parsing option values and retrieving
     the values of options.
+
+    It has built-in support for :oslo.config:option:`config_file` and
+    :oslo.config:option:`config_dir` options.
+
     """
 
     def __init__(self):
@@ -1926,6 +2041,8 @@ class ConfigOpts(collections.Mapping):
 
         self._oparser = None
         self._namespace = None
+        self._mutable_ns = None
+        self._mutate_hooks = set([])
         self.__cache = {}
         self._config_opts = []
         self._cli_opts = collections.deque()
@@ -1948,17 +2065,16 @@ class ConfigOpts(collections.Mapping):
 
         return prog, default_config_files
 
-    def _setup(self, project, prog, version, usage, default_config_files):
-        """Initialize a ConfigOpts object for option parsing."""
-
-        self._config_opts = [
+    @staticmethod
+    def _make_config_options(default_config_files):
+        return [
             _ConfigFileOpt('config-file',
                            default=default_config_files,
                            metavar='PATH',
                            help=('Path to a config file to use. Multiple '
                                  'config files can be specified, with values '
-                                 'in later files taking precedence. The '
-                                 'default files used are: %(default)s.')),
+                                 'in later files taking precedence. Defaults '
+                                 'to %(default)s.')),
             _ConfigDirOpt('config-dir',
                           metavar='DIR',
                           help='Path to a config directory to pull *.conf '
@@ -1970,6 +2086,11 @@ class ConfigOpts(collections.Mapping):
                                'over-ridden options in the directory take '
                                'precedence.'),
         ]
+
+    def _setup(self, project, prog, version, usage, default_config_files):
+        """Initialize a ConfigOpts object for option parsing."""
+
+        self._config_opts = self._make_config_options(default_config_files)
         self.register_cli_opts(self._config_opts)
 
         self.project = project
@@ -2093,6 +2214,8 @@ class ConfigOpts(collections.Mapping):
         self._args = None
         self._oparser = None
         self._namespace = None
+        self._mutable_ns = None
+        # Keep _mutate_hooks
         self._validate_default_values = False
         self.unregister_opts(self._config_opts)
         for group in self._groups.values():
@@ -2331,6 +2454,10 @@ class ConfigOpts(collections.Mapping):
             info.pop('default', None)
             info.pop('override', None)
 
+    @property
+    def config_dirs(self):
+        return self._namespace._config_dirs
+
     def find_file(self, name):
         """Locate a file located alongside the config files.
 
@@ -2349,8 +2476,9 @@ class ConfigOpts(collections.Mapping):
         :returns: the path to a matching file, or None
         """
         dirs = []
-        if self.config_dir:
-            dirs.append(_fixpath(self.config_dir))
+        if self._namespace._config_dirs:
+            for directory in self._namespace._config_dirs:
+                dirs.append(_fixpath(directory))
 
         for cf in reversed(self.config_file):
             dirs.append(os.path.dirname(_fixpath(cf)))
@@ -2443,8 +2571,7 @@ class ConfigOpts(collections.Mapping):
 
         :param name: the opt name (or 'dest', more precisely)
         :param group: an OptGroup
-        :param namespace: the namespace object that retrieves the option
-                            value from
+        :param namespace: the namespace object to get the option value from
         :returns: the option value, or a GroupAttr object
         :raises: NoSuchOptError, NoSuchGroupError, ConfigFileValueError,
                  TemplateSubstitutionError
@@ -2461,13 +2588,14 @@ class ConfigOpts(collections.Mapping):
         if 'override' in info:
             return self._substitute(info['override'])
 
-        if namespace is None:
-            namespace = self._namespace
-
         def convert(value):
             return self._convert_value(
                 self._substitute(value, group, namespace), opt)
 
+        if opt.mutable and namespace is None:
+            namespace = self._mutable_ns
+        if namespace is None:
+            namespace = self._namespace
         if namespace is not None:
             group_name = group.name if group else None
             try:
@@ -2662,21 +2790,25 @@ class ConfigOpts(collections.Mapping):
                     opt.dest, repr(opt.type), value))
                 raise SystemExit
 
+    def _reload_config_files(self):
+        namespace = self._parse_config_files()
+        if namespace._files_not_found:
+            raise ConfigFilesNotFoundError(namespace._files_not_found)
+        if namespace._files_permission_denied:
+            raise ConfigFilesPermissionDeniedError(
+                namespace._files_permission_denied)
+        self._check_required_opts(namespace)
+        return namespace
+
     @__clear_cache
     def reload_config_files(self):
         """Reload configure files and parse all options
 
         :return False if reload configure files failed or else return True
         """
-        try:
-            namespace = self._parse_config_files()
-            if namespace._files_not_found:
-                raise ConfigFilesNotFoundError(namespace._files_not_found)
-            if namespace._files_permission_denied:
-                raise ConfigFilesPermissionDeniedError(
-                    namespace._files_permission_denied)
-            self._check_required_opts(namespace)
 
+        try:
+            namespace = self._reload_config_files()
         except SystemExit as exc:
             LOG.warning("Caught SystemExit while reloading configure files "
                         "with exit code: %d", exc.code)
@@ -2689,15 +2821,107 @@ class ConfigOpts(collections.Mapping):
             self._namespace = namespace
             return True
 
+    def register_mutate_hook(self, hook):
+        """Registers a hook to be called by mutate_config_files.
+
+        :param hook: a function accepting this ConfigOpts object and a dict of
+                     config mutations, as returned by mutate_config_files.
+        :return None
+        """
+        self._mutate_hooks.add(hook)
+
+    @__clear_cache
+    def mutate_config_files(self):
+        """Reload configure files and parse all options.
+
+        Only options marked as 'mutable' will appear to change.
+
+        Hooks are called in a NON-DETERMINISTIC ORDER. Do not expect hooks to
+        be called in the same order as they were added.
+
+        :return {(None or 'group', 'optname'): (old_value, new_value), ... }
+        :raises Error if reloading fails
+        """
+
+        old_mutate_ns = self._mutable_ns or self._namespace
+        self._mutable_ns = self._reload_config_files()
+        self._warn_immutability()
+        fresh = self._diff_ns(old_mutate_ns, self._mutable_ns)
+
+        def key_fn(item):
+            # Py3 won't sort heterogeneous types. Sort None as TAB which has a
+            # very low ASCII value.
+            (groupname, optname) = item[0]
+            return item[0] if groupname else ('\t', optname)
+        sorted_fresh = sorted(fresh.items(), key=key_fn)
+        for (groupname, optname), (old, new) in sorted_fresh:
+            groupname = groupname if groupname else 'DEFAULT'
+            LOG.info("Option %s.%s changed from [%s] to [%s]",
+                     groupname, optname, old, new)
+        for hook in self._mutate_hooks:
+            hook(self, fresh)
+        return fresh
+
+    def _warn_immutability(self):
+        """Check immutable opts have not changed.
+
+        _do_get won't return the new values but presumably someone changed the
+        config file expecting them to change so we should warn them they won't.
+        """
+        for info, group in self._all_opt_infos():
+            opt = info['opt']
+            if opt.mutable:
+                continue
+            groupname = group.name if group else 'DEFAULT'
+            try:
+                old = opt._get_from_namespace(self._namespace, groupname)
+            except KeyError:
+                old = None
+            try:
+                new = opt._get_from_namespace(self._mutable_ns, groupname)
+            except KeyError:
+                new = None
+            if old != new:
+                LOG.warn("Ignoring change to immutable option %s.%s"
+                         % (groupname, opt.name))
+
+    def _diff_ns(self, old_ns, new_ns):
+        """Compare mutable option values between two namespaces.
+
+        This can be used to only reconfigure stateful sessions when necessary.
+
+        :return {(None or 'group', 'optname'): (old_value, new_value), ... }
+        """
+        diff = {}
+        for info, group in self._all_opt_infos():
+            opt = info['opt']
+            if not opt.mutable:
+                continue
+            groupname = group.name if group else None
+            try:
+                old = opt._get_from_namespace(old_ns, groupname)
+            except KeyError:
+                old = None
+            try:
+                new = opt._get_from_namespace(new_ns, groupname)
+            except KeyError:
+                new = None
+            if old != new:
+                diff[(groupname, opt.name)] = (old, new)
+        return diff
+
     def list_all_sections(self):
         """List all sections from the configuration.
 
-        Returns an iterator over all section names found in the
+        Returns a sorted list of all section names found in the
         configuration files, whether declared beforehand or not.
         """
-        for sections in self._namespace._parser.parsed:
-            for section in sections:
-                yield section
+        s = set([])
+        if self._mutable_ns:
+            s |= set(self._mutable_ns._sections())
+        if self._namespace:
+            s |= set(self._namespace._sections())
+        return sorted(s)
 
     class GroupAttr(collections.Mapping):
 

@@ -23,6 +23,7 @@ Tool for generating a sample configuration file. See
 .. versionadded:: 1.4
 """
 
+import collections
 import logging
 import operator
 import sys
@@ -76,14 +77,16 @@ def _format_defaults(opt):
         elif opt.default is None:
             default_str = '<None>'
         elif (isinstance(opt, cfg.StrOpt) or
-              isinstance(opt, cfg.IPOpt)):
+              isinstance(opt, cfg.IPOpt) or
+              isinstance(opt, cfg.HostnameOpt)):
             default_str = opt.default
         elif isinstance(opt, cfg.BoolOpt):
             default_str = str(opt.default).lower()
         elif isinstance(opt, (cfg.IntOpt, cfg.FloatOpt,
                               cfg.PortOpt)):
             default_str = str(opt.default)
-        elif isinstance(opt, cfg.ListOpt):
+        elif isinstance(opt, (cfg.ListOpt, cfg._ConfigFileOpt,
+                              cfg._ConfigDirOpt)):
             default_str = ','.join(opt.default)
         elif isinstance(opt, cfg.DictOpt):
             sorted_items = sorted(opt.default.items(),
@@ -175,10 +178,10 @@ class _OptFormatter(object):
             help_text = u'(%s)' % opt_type
         lines = self._format_help(help_text)
 
-        if getattr(opt.type, 'min', None):
+        if getattr(opt.type, 'min', None) is not None:
             lines.append('# Minimum value: %d\n' % opt.type.min)
 
-        if getattr(opt.type, 'max', None):
+        if getattr(opt.type, 'max', None) is not None:
             lines.append('# Maximum value: %d\n' % opt.type.max)
 
         if getattr(opt.type, 'choices', None):
@@ -231,7 +234,41 @@ class _OptFormatter(object):
         self.output_file.writelines(l)
 
 
-def _list_opts(namespaces):
+def _cleanup_opts(read_opts):
+    """Cleanup duplicate options in namespace groups
+
+    Return a structure which removes duplicate options from a namespace group.
+    NOTE:(rbradfor) This does not remove duplicated options from repeating
+    groups in different namespaces:
+
+    :param read_opts: a list (namespace, [(group, [opt_1, opt_2])]) tuples
+    :returns: a list of (namespace, [(group, [opt_1, opt_2])]) tuples
+    """
+
+    # OrderedDict is used specifically in the three levels to maintain the
+    # source order of namespace/group/opt values
+    clean = collections.OrderedDict()
+    for namespace, listing in read_opts:
+        if namespace not in clean:
+            clean[namespace] = collections.OrderedDict()
+        for group, opts in listing:
+            if group not in clean[namespace]:
+                clean[namespace][group] = collections.OrderedDict()
+            for opt in opts:
+                clean[namespace][group][opt.dest] = opt
+
+    # recreate the list of (namespace, [(group, [opt_1, opt_2])]) tuples
+    # from the cleaned structure.
+    cleaned_opts = [
+        (namespace, [(group, list(clean[namespace][group].values()))
+                     for group in clean[namespace]])
+        for namespace in clean
+    ]
+
+    return cleaned_opts
+
+
+def _get_raw_opts_loaders(namespaces):
     """List the options available via the given namespaces.
 
     :param namespaces: a list of namespaces registered under 'oslo.config.opts'
@@ -241,45 +278,79 @@ def _list_opts(namespaces):
         'oslo.config.opts',
         names=namespaces,
         on_load_failure_callback=on_load_failure_callback,
-        invoke_on_load=True)
-    opts = [(ep.name, ep.obj) for ep in mgr]
+        invoke_on_load=False)
+    return [(e.name, e.plugin) for e in mgr]
 
-    def _cleanup_opts(read_opts):
-        # create a clean structure which makes the cleanup of doubles easier
-        #     namespace1 :
-        #         group1: [ opts1 ]
-        #         group2: [ opts2 ]
-        #     namespace2 :
-        #         group3: [ opts3 ]
-        #         group4: [ opts4 ]
-        clean = {}
-        for namespace, listing in read_opts:
-            if namespace not in clean:
-                clean[namespace] = {}
-            for group, opts in listing:
-                if group not in clean[namespace]:
-                    clean[namespace][group] = []
-                clean[namespace][group] += opts
-                # This set() is the magic which removes the doubles for
-                # one group in one namespace. Everything else in this
-                # method is preparation or post-treatment.
-                clean[namespace][group] = list(set(clean[namespace][group]))
 
-        # build the list of (namespace, [(group, [opt_1, opt_2])]) out of
-        # the cleaned structure.
-        cleaned_opts = []
-        for namespace in clean:
-            groups_opts = []
-            for group, opts in clean[namespace].items():
-                groups_opts.append((group, opts))
-            cleaned_opts.append((namespace, groups_opts))
-        return cleaned_opts
+def _get_opt_default_updaters(namespaces):
+    mgr = stevedore.named.NamedExtensionManager(
+        'oslo.config.opts.defaults',
+        names=namespaces,
+        on_load_failure_callback=on_load_failure_callback,
+        invoke_on_load=False)
+    return [ep.plugin for ep in mgr]
 
+
+def _update_defaults(namespaces):
+    "Let application hooks update defaults inside libraries."
+    for update in _get_opt_default_updaters(namespaces):
+        update()
+
+
+def _list_opts(namespaces):
+    """List the options available via the given namespaces.
+
+    Duplicate options from a namespace are removed.
+
+    :param namespaces: a list of namespaces registered under 'oslo.config.opts'
+    :returns: a list of (namespace, [(group, [opt_1, opt_2])]) tuples
+    """
+    # Load the functions to get the options.
+    loaders = _get_raw_opts_loaders(namespaces)
+    # Update defaults, which might change global settings in library
+    # modules.
+    _update_defaults(namespaces)
+    # Ask for the option definitions. At this point any global default
+    # changes made by the updaters should be in effect.
+    opts = [
+        (namespace, loader())
+        for namespace, loader in loaders
+    ]
     return _cleanup_opts(opts)
 
 
 def on_load_failure_callback(*args, **kwargs):
     raise
+
+
+def _output_opts(f, group, namespaces):
+    f.format_group(group)
+    for (namespace, opts) in sorted(namespaces,
+                                    key=operator.itemgetter(0)):
+        f.write('\n#\n# From %s\n#\n' % namespace)
+        for opt in opts:
+            f.write('\n')
+            f.format(opt)
+
+
+def _get_group_name(item):
+    group = item[0]
+    # The keys of the groups dictionary could be an OptGroup. Otherwise the
+    # help text of an OptGroup wouldn't be part of the generated sample
+    # file. It could also be just a plain group name without any further
+    # attributes. That's the reason why we have to differentiate here.
+    return group.name if isinstance(group, cfg.OptGroup) else group
+
+
+def _get_groups(conf_ns):
+    groups = {'DEFAULT': []}
+    for namespace, listing in conf_ns:
+        for group, opts in listing:
+            if not opts:
+                continue
+            namespaces = groups.setdefault(group or 'DEFAULT', [])
+            namespaces.append((namespace, opts))
+    return groups
 
 
 def generate(conf):
@@ -298,39 +369,12 @@ def generate(conf):
     formatter = _OptFormatter(output_file=output_file,
                               wrap_width=conf.wrap_width)
 
-    groups = {'DEFAULT': []}
-    for namespace, listing in _list_opts(conf.namespace):
-        for group, opts in listing:
-            if not opts:
-                continue
-            namespaces = groups.setdefault(group or 'DEFAULT', [])
-            namespaces.append((namespace, opts))
-
-    def _output_opts(f, group, namespaces):
-        f.format_group(group)
-        for (namespace, opts) in sorted(namespaces,
-                                        key=operator.itemgetter(0)):
-            f.write('\n#\n# From %s\n#\n' % namespace)
-            for opt in opts:
-                f.write('\n')
-                f.format(opt)
-
-    def _get_group_name(item):
-        group = item[0]
-        # The keys of the groups dictionary could be an OptGroup. Otherwise the
-        # help text of an OptGroup wouldn't be part of the generated sample
-        # file. It could also be just a plain group name without any further
-        # attributes. That's the reason why we have to distinct this here.
-        if isinstance(group, cfg.OptGroup):
-            group_name = group.name
-        else:
-            group_name = group
-        return group_name
+    groups = _get_groups(_list_opts(conf.namespace))
 
     # Output the "DEFAULT" section as the very first section
     _output_opts(formatter, 'DEFAULT', groups.pop('DEFAULT'))
 
-    # output all other config sections with opts in alphabetical order
+    # output all other config sections with groups in alphabetical order
     for group, namespaces in sorted(groups.items(), key=_get_group_name):
         formatter.write('\n\n')
         _output_opts(formatter, group, namespaces)

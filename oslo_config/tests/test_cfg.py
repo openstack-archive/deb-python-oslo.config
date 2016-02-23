@@ -878,7 +878,18 @@ class ConfigFileOptsTestCase(BaseTestCase):
         self.assertTrue(hasattr(self.conf, 'foo'))
         self.assertEqual(self.conf.foo, 'bar')
 
-    def test_conf_file_bool_default(self):
+    def test_conf_file_bool_default_none(self):
+        self.conf.register_opt(cfg.BoolOpt('foo'))
+
+        paths = self.create_tempfiles([('test',
+                                        '[DEFAULT]\n')])
+
+        self.conf(['--config-file', paths[0]])
+
+        self.assertTrue(hasattr(self.conf, 'foo'))
+        self.assertIsNone(self.conf.foo)
+
+    def test_conf_file_bool_default_false(self):
         self.conf.register_opt(cfg.BoolOpt('foo', default=False))
 
         paths = self.create_tempfiles([('test',
@@ -1642,6 +1653,110 @@ class ConfigFileReloadTestCase(BaseTestCase):
         self.assertEqual(self.conf.foo, 'test1')
         self.assertTrue(hasattr(self.conf, 'foo1'))
         self.assertEqual(self.conf.foo1, 'test11')
+
+
+class ConfigFileMutateTestCase(BaseTestCase):
+    def setUp(self):
+        super(ConfigFileMutateTestCase, self).setUp()
+        self.my_group = cfg.OptGroup('group', 'group options')
+        self.conf.register_group(self.my_group)
+
+    def _test_conf_files_mutate(self):
+        paths = self.create_tempfiles([
+            ('1', '[DEFAULT]\n'
+                  'foo = old_foo\n'
+                  '[group]\n'
+                  'boo = old_boo\n'),
+            ('2', '[DEFAULT]\n'
+                  'foo = new_foo\n'
+                  '[group]\n'
+                  'boo = new_boo\n')])
+
+        self.conf(['--config-file', paths[0]])
+        shutil.copy(paths[1], paths[0])
+        return self.conf.mutate_config_files()
+
+    def test_conf_files_mutate_none(self):
+        """Test that immutable opts are not reloaded"""
+
+        self.conf.register_cli_opt(cfg.StrOpt('foo'))
+        self._test_conf_files_mutate()
+        self.assertTrue(hasattr(self.conf, 'foo'))
+        self.assertEqual(self.conf.foo, 'old_foo')
+
+    def test_conf_files_mutate_foo(self):
+        """Test that a mutable opt can be reloaded."""
+
+        self.conf.register_cli_opt(cfg.StrOpt('foo', mutable=True))
+        self._test_conf_files_mutate()
+        self.assertTrue(hasattr(self.conf, 'foo'))
+        self.assertEqual(self.conf.foo, 'new_foo')
+
+    def test_conf_files_mutate_group(self):
+        """Test that mutable opts in groups can be reloaded."""
+        self.conf.register_cli_opt(cfg.StrOpt('boo', mutable=True),
+                                   group=self.my_group)
+        self._test_conf_files_mutate()
+        self.assertTrue(hasattr(self.conf, 'group'))
+        self.assertTrue(hasattr(self.conf.group, 'boo'))
+        self.assertEqual(self.conf.group.boo, 'new_boo')
+
+    def test_warn_immutability(self):
+        self.log_fixture = self.useFixture(fixtures.FakeLogger())
+        self.conf.register_cli_opt(cfg.StrOpt('foo', mutable=True))
+        self.conf.register_cli_opt(cfg.StrOpt('boo'), group=self.my_group)
+        self._test_conf_files_mutate()
+        self.assertEqual(
+            "Ignoring change to immutable option group.boo\n"
+            "Option DEFAULT.foo changed from [old_foo] to [new_foo]\n",
+            self.log_fixture.output)
+
+    def test_diff(self):
+        self.log_fixture = self.useFixture(fixtures.FakeLogger())
+        self.conf.register_cli_opt(cfg.StrOpt('imm'))
+        self.conf.register_cli_opt(cfg.StrOpt('blank', mutable=True))
+        self.conf.register_cli_opt(cfg.StrOpt('foo', mutable=True))
+        self.conf.register_cli_opt(cfg.StrOpt('boo', mutable=True),
+                                   group=self.my_group)
+        diff = self._test_conf_files_mutate()
+        self.assertEqual(
+            {(None, 'foo'): ('old_foo', 'new_foo'),
+             ('group', 'boo'): ('old_boo', 'new_boo')},
+            diff)
+        expected = ("Option DEFAULT.foo changed from [old_foo] to [new_foo]\n"
+                    "Option group.boo changed from [old_boo] to [new_boo]\n")
+        self.assertEqual(expected, self.log_fixture.output)
+
+    def test_hooks(self):
+        fresh = {}
+        result = [0]
+
+        def foo(conf, foo_fresh):
+            self.assertEqual(self.conf, conf)
+            self.assertEqual(fresh, foo_fresh)
+            result[0] += 1
+
+        self.conf.register_mutate_hook(foo)
+        self.conf.register_mutate_hook(foo)
+        self._test_conf_files_mutate()
+        self.assertEqual(1, result[0])
+
+    def test_clear(self):
+        """Show that #clear doesn't undeclare opts.
+
+        This justifies not clearing mutate_hooks either. ResetAndClearTestCase
+        shows that values are cleared.
+        """
+        self.conf.register_cli_opt(cfg.StrOpt('cli'))
+        self.conf.register_opt(cfg.StrOpt('foo'))
+        dests = [info['opt'].dest for info, _ in self.conf._all_opt_infos()]
+        self.assertIn('cli', dests)
+        self.assertIn('foo', dests)
+
+        self.conf.clear()
+        dests = [info['opt'].dest for info, _ in self.conf._all_opt_infos()]
+        self.assertIn('cli', dests)
+        self.assertIn('foo', dests)
 
 
 class OptGroupsTestCase(BaseTestCase):
@@ -3073,15 +3188,30 @@ class FindFileTestCase(BaseTestCase):
 
         self.assertEqual(self.conf.find_file('policy.json'), paths[1])
 
+    def test_find_policy_file_with_multiple_config_dirs(self):
+        dir1 = tempfile.mkdtemp()
+        self.tempdirs.append(dir1)
+
+        dir2 = tempfile.mkdtemp()
+        self.tempdirs.append(dir2)
+
+        self.conf(['--config-dir', dir1, '--config-dir', dir2])
+        self.assertEqual(2, len(self.conf.config_dirs))
+        self.assertEqual(dir1, self.conf.config_dirs[0])
+        self.assertEqual(dir2, self.conf.config_dirs[1])
+
     def test_find_policy_file_with_config_dir(self):
         dir = tempfile.mkdtemp()
         self.tempdirs.append(dir)
+
+        dir2 = tempfile.mkdtemp()
+        self.tempdirs.append(dir2)
 
         path = self.create_tempfiles([(os.path.join(dir, 'policy.json'),
                                        '{}')],
                                      ext='')[0]
 
-        self.conf(['--config-dir', dir])
+        self.conf(['--config-dir', dir, '--config-dir', dir2])
 
         self.assertEqual(self.conf.find_file('policy.json'), path)
 
@@ -3292,6 +3422,90 @@ class MultiConfigParserTestCase(BaseTestCase):
         self.assertEqual(parser._get([('BLAA', 'bar')],
                                      multi=True, normalized=True),
                          ['foo', 'foofoo', 'foofoofoo'])
+
+
+class NamespaceTestCase(BaseTestCase):
+    def setUp(self):
+        super(NamespaceTestCase, self).setUp()
+        self.ns = cfg._Namespace(self.conf)
+
+    def read(self, *texts):
+        paths = ((str(i), t) for i, t in enumerate(texts))
+        for path in self.create_tempfiles(paths):
+            cfg.ConfigParser._parse_file(path, self.ns)
+
+    def assertAbsent(self, key, normalized=False):
+        self.assertRaises(KeyError, self.ns._get_value, [key],
+                          normalized=normalized)
+
+    def assertValue(self, key, expect, multi=False, normalized=False):
+        actual = self.ns._get_value([key], multi=multi, normalized=normalized)
+        self.assertEqual(actual, expect)
+
+    def test_cli(self):
+        self.conf.register_cli_opt(cfg.StrOpt('foo'))
+        key = (None, 'foo')
+        self.assertAbsent(key)
+
+        self.read('[DEFAULT]\n'
+                  'foo = file0\n')
+        self.assertValue(key, 'file0')
+
+        self.read('[DEFAULT]\n'
+                  'foo = file1\n')
+        self.assertEqual(self.ns._get_cli_value([key]), 'file1')
+
+    def test_single_file(self):
+        self.read('[DEFAULT]\n'
+                  'foo = bar\n'
+                  '[BLAA]\n'
+                  'bar = foo\n')
+
+        self.assertValue(('DEFAULT', 'foo'), 'bar')
+        self.assertValue(('DEFAULT', 'foo'), ['bar'], multi=True)
+        self.assertValue(('DEFAULT', 'foo'), ['bar'], multi=True)
+        self.assertValue((None, 'foo'), ['bar'], multi=True)
+        self.assertValue(('DEFAULT', 'foo'), ['bar'], multi=True,
+                         normalized=True)
+
+        self.assertValue(('BLAA', 'bar'), 'foo')
+        self.assertValue(('BLAA', 'bar'), ['foo'], multi=True)
+        self.assertValue(('blaa', 'bar'), ['foo'], multi=True,
+                         normalized=True)
+
+    def test_multiple_files(self):
+        self.read('[DEFAULT]\n'
+                  'foo = bar\n'
+                  '[BLAA]\n'
+                  'bar = foo',
+
+                  '[DEFAULT]\n'
+                  'foo = barbar\n'
+                  '[BLAA]\n'
+                  'bar = foofoo\n'
+                  '[bLAa]\n'
+                  'bar = foofoofoo\n')
+
+        self.assertValue(('DEFAULT', 'foo'), 'barbar')
+        self.assertValue(('DEFAULT', 'foo'), ['bar', 'barbar'], multi=True)
+
+        self.assertValue(('BLAA', 'bar'), 'foofoo')
+        self.assertValue(('bLAa', 'bar'), 'foofoofoo')
+        self.assertValue(('BLAA', 'bar'), ['foo', 'foofoo'], multi=True)
+        self.assertValue(('Blaa', 'bar'), ['foo', 'foofoo', 'foofoofoo'],
+                         multi=True, normalized=True)
+
+    def test_attrs_subparser(self):
+        CONF = cfg.ConfigOpts()
+        CONF.register_cli_opt(cfg.SubCommandOpt(
+            'foo', handler=lambda sub: sub.add_parser('foo')))
+        CONF(['foo'])
+
+    def test_attrs_subparser_failure(self):
+        CONF = cfg.ConfigOpts()
+        CONF.register_cli_opt(cfg.SubCommandOpt(
+            'foo', handler=lambda sub: sub.add_parser('foo')))
+        self.assertRaises(SystemExit, CONF, ['foo', 'bar'])
 
 
 class TildeExpansionTestCase(BaseTestCase):
@@ -3774,7 +3988,7 @@ class PortChoicesTestCase(BaseTestCase):
         self.assertRaises(SystemExit, self.conf, ['--port', '8181'])
 
     def test_choice_out_range(self):
-        self.assertRaisesRegexp(ValueError, 'values 65537, 0 should',
+        self.assertRaisesRegexp(ValueError, 'values 65537 should',
                                 cfg.PortOpt, 'port', choices=[80, 65537, 0])
 
     def test_conf_file_choice_value(self):
@@ -4005,17 +4219,41 @@ class OptTestCase(base.BaseTestCase):
         self.assertRaises(ValueError, cfg.BoolOpt, '_foo')
 
 
-class SectionsTestCase(base.BaseTestCase):
+class SectionsTestCase(BaseTestCase):
     def test_list_all_sections(self):
         paths = self.create_tempfiles([('test.ini',
                                         '[DEFAULT]\n'
                                         'foo = bar\n'
                                         '[BLAA]\n'
+                                        'bar = foo\n'),
+                                       ('test2.ini',
+                                        '[DEFAULT]\n'
+                                        'foo = bar\n'
+                                        '[BLAA]\n'
                                         'bar = foo\n')])
-        config = cfg.ConfigOpts()
-        config(args=[], default_config_files=[paths[0]])
-        sections = set(config.list_all_sections())
-        self.assertEqual(sections, set(['DEFAULT', 'BLAA']))
+        self.conf(args=[], default_config_files=paths)
+        self.assertEqual(['BLAA', 'DEFAULT'],
+                         self.conf.list_all_sections())
+
+    def test_list_all_sections_post_mutate(self):
+        paths = self.create_tempfiles([('test.ini',
+                                        '[DEFAULT]\n'
+                                        'foo = bar\n'
+                                        '[BLAA]\n'
+                                        'bar = foo\n'),
+                                       ('test2.ini',
+                                        '[WOMBAT]\n'
+                                        'woo = war\n'
+                                        '[BLAA]\n'
+                                        'bar = foo\n')])
+        self.conf(args=[], default_config_files=paths[:1])
+        self.assertEqual(['BLAA', 'DEFAULT'],
+                         self.conf.list_all_sections())
+
+        shutil.copy(paths[1], paths[0])
+        self.conf.mutate_config_files()
+        self.assertEqual(['BLAA', 'DEFAULT', 'WOMBAT'],
+                         self.conf.list_all_sections())
 
 
 class DeprecationWarningTestBase(BaseTestCase):

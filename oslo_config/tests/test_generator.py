@@ -18,6 +18,7 @@ import fixtures
 import mock
 from oslotest import base
 from six import moves
+import tempfile
 import testscenarios
 
 from oslo_config import cfg
@@ -117,6 +118,15 @@ class GeneratorTestCase(base.BaseTestCase):
                               min=1,
                               max=20,
                               help='an integer'),
+        'int_opt_min_0': cfg.IntOpt('int_opt_min_0',
+                                    default=10,
+                                    min=0,
+                                    max=20,
+                                    help='an integer'),
+        'int_opt_max_0': cfg.IntOpt('int_opt_max_0',
+                                    default=-1,
+                                    max=0,
+                                    help='an integer'),
         'float_opt': cfg.FloatOpt('float_opt',
                                   default=0.1,
                                   help='a float'),
@@ -132,6 +142,9 @@ class GeneratorTestCase(base.BaseTestCase):
         'port_opt': cfg.PortOpt('port_opt',
                                 default=80,
                                 help='a port'),
+        'hostname_opt': cfg.HostnameOpt('hostname_opt',
+                                        default='compute01.nova.site1',
+                                        help='a hostname'),
         'multi_opt': cfg.MultiStrOpt('multi_opt',
                                      default=['1', '2', '3'],
                                      help='multiple strings'),
@@ -512,6 +525,32 @@ class GeneratorTestCase(base.BaseTestCase):
 # Maximum value: 20
 #int_opt = 10
 ''')),
+        ('int_opt_min_0',
+         dict(opts=[('test', [(None, [opts['int_opt_min_0']])])],
+              expected='''[DEFAULT]
+
+#
+# From test
+#
+
+# an integer (integer value)
+# Minimum value: 0
+# Maximum value: 20
+#int_opt_min_0 = 10
+''')),
+        ('int_opt_max_0',
+         dict(opts=[('test', [(None, [opts['int_opt_max_0']])])],
+              expected='''[DEFAULT]
+
+#
+# From test
+#
+
+# an integer (integer value)
+# Maximum value: 0
+#int_opt_max_0 = -1
+''')),
+
         ('float_opt',
          dict(opts=[('test', [(None, [opts['float_opt']])])],
               expected='''[DEFAULT]
@@ -565,9 +604,20 @@ class GeneratorTestCase(base.BaseTestCase):
 #
 
 # a port (port value)
-# Minimum value: 1
+# Minimum value: 0
 # Maximum value: 65535
 #port_opt = 80
+''')),
+        ('hostname_opt',
+         dict(opts=[('test', [(None, [opts['hostname_opt']])])],
+              expected='''[DEFAULT]
+
+#
+# From test
+#
+
+# a hostname (hostname value)
+#hostname_opt = compute01.nova.site1
 ''')),
         ('multi_opt',
          dict(opts=[('test', [(None, [opts['multi_opt']])])],
@@ -694,9 +744,9 @@ class GeneratorTestCase(base.BaseTestCase):
     def _capture_stdout(self):
         return self._capture_stream('stdout')
 
-    @mock.patch('stevedore.named.NamedExtensionManager')
+    @mock.patch.object(generator, '_get_raw_opts_loaders')
     @mock.patch.object(generator, 'LOG')
-    def test_generate(self, mock_log, named_mgr):
+    def test_generate(self, mock_log, raw_opts_loader):
         generator.register_cli_opts(self.conf)
 
         namespaces = [i[0] for i in self.opts]
@@ -715,12 +765,17 @@ class GeneratorTestCase(base.BaseTestCase):
             output_file = self.tempdir.join(self.output_file)
             self.config(output_file=output_file)
 
-        mock_eps = []
-        for name, opts in self.opts:
-            mock_ep = mock.Mock()
-            mock_ep.configure_mock(name=name, obj=opts)
-            mock_eps.append(mock_ep)
-        named_mgr.return_value = mock_eps
+        # We have a static data structure matching what should be
+        # returned by _list_opts() but we're mocking out a lower level
+        # function that needs to return a namespace and a callable to
+        # return options from that namespace. We have to pass opts to
+        # the lambda to cache a reference to the name because the list
+        # comprehension changes the thing pointed to by the name each
+        # time through the loop.
+        raw_opts_loader.return_value = [
+            (ns, lambda opts=opts: opts)
+            for ns, opts in self.opts
+        ]
 
         generator.generate(self.conf)
 
@@ -729,12 +784,6 @@ class GeneratorTestCase(base.BaseTestCase):
         else:
             content = open(output_file).read()
             self.assertEqual(self.expected, content)
-
-        named_mgr.assert_called_once_with(
-            'oslo.config.opts',
-            names=namespaces,
-            on_load_failure_callback=generator.on_load_failure_callback,
-            invoke_on_load=True)
 
         log_warning = getattr(self, 'log_warning', None)
         if log_warning is not None:
@@ -745,28 +794,150 @@ class GeneratorTestCase(base.BaseTestCase):
 
 class IgnoreDoublesTestCase(base.BaseTestCase):
 
-    @mock.patch('stevedore.named.NamedExtensionManager')
-    def test_list_ignores_doubles(self, named_mgr):
-        config_opts = [cfg.StrOpt('foo'),
-                       cfg.StrOpt('bar'),
-                       ]
-        mock_ep1 = mock.Mock()
-        mock_ep1.configure_mock(name="namespace",
-                                obj=[("group", config_opts)])
-        mock_ep2 = mock.Mock()
-        mock_ep2.configure_mock(name="namespace",
-                                obj=[("group", config_opts)])
+    opts = [cfg.StrOpt('foo', help='foo option'),
+            cfg.StrOpt('bar', help='bar option'),
+            cfg.StrOpt('foo_bar', help='foobar'),
+            cfg.StrOpt('str_opt', help='a string'),
+            cfg.BoolOpt('bool_opt', help='a boolean'),
+            cfg.IntOpt('int_opt', help='an integer')]
+
+    def test_cleanup_opts_default(self):
+        o = [("namespace1", [
+              ("group1", self.opts)])]
+        self.assertEqual(o, generator._cleanup_opts(o))
+
+    def test_cleanup_opts_dup_opt(self):
+        o = [("namespace1", [
+              ("group1", self.opts + [self.opts[0]])])]
+        e = [("namespace1", [
+              ("group1", self.opts)])]
+        self.assertEqual(e, generator._cleanup_opts(o))
+
+    def test_cleanup_opts_dup_groups_opt(self):
+        o = [("namespace1", [
+              ("group1", self.opts + [self.opts[1]]),
+              ("group2", self.opts),
+              ("group3", self.opts + [self.opts[2]])])]
+        e = [("namespace1", [
+              ("group1", self.opts),
+              ("group2", self.opts),
+              ("group3", self.opts)])]
+        self.assertEqual(e, generator._cleanup_opts(o))
+
+    def test_cleanup_opts_dup_namespace_groups_opts(self):
+        o = [("namespace1", [
+              ("group1", self.opts + [self.opts[1]]),
+              ("group2", self.opts)]),
+             ("namespace2", [
+              ("group1", self.opts + [self.opts[2]]),
+              ("group2", self.opts)])]
+        e = [("namespace1", [
+              ("group1", self.opts),
+              ("group2", self.opts)]),
+             ("namespace2", [
+              ("group1", self.opts),
+              ("group2", self.opts)])]
+        self.assertEqual(e, generator._cleanup_opts(o))
+
+    @mock.patch.object(generator, '_get_raw_opts_loaders')
+    def test_list_ignores_doubles(self, raw_opts_loaders):
+        config_opts = [
+            (None, [cfg.StrOpt('foo'), cfg.StrOpt('bar')]),
+        ]
+
         # These are the very same config options, but read twice.
         # This is possible if one misconfigures the entry point for the
         # sample config generator.
-        mock_eps = [mock_ep1, mock_ep2]
-        named_mgr.return_value = mock_eps
+        raw_opts_loaders.return_value = [
+            ('namespace', lambda: config_opts),
+            ('namespace', lambda: config_opts),
+        ]
 
         slurped_opts = 0
         for _, listing in generator._list_opts(None):
             for _, opts in listing:
                 slurped_opts += len(opts)
-        self.assertEqual(len(config_opts), slurped_opts)
+        self.assertEqual(2, slurped_opts)
+
+
+class GeneratorAdditionalTestCase(base.BaseTestCase):
+
+    opts = [cfg.StrOpt('foo', help='foo option', default='fred'),
+            cfg.StrOpt('bar', help='bar option'),
+            cfg.StrOpt('foo_bar', help='foobar'),
+            cfg.StrOpt('str_opt', help='a string'),
+            cfg.BoolOpt('bool_opt', help='a boolean'),
+            cfg.IntOpt('int_opt', help='an integer')]
+
+    def test_get_group_name(self):
+        name = "group1"
+        item = [name]
+        self.assertEqual(name, generator._get_group_name(item))
+
+    def test_get_group_name_as_optgroup(self):
+        name = "group2"
+        item = [cfg.OptGroup(name)]
+        self.assertEqual(name, generator._get_group_name(item))
+
+    def test_get_groups_empty_ns(self):
+        groups = generator._get_groups([])
+        self.assertEqual({'DEFAULT': []}, groups)
+
+    def test_get_groups_single_ns(self):
+        config = [("namespace1", [
+                   ("beta", self.opts),
+                   ("alpha", self.opts)])]
+        groups = generator._get_groups(config)
+        self.assertEqual(['DEFAULT', 'alpha', 'beta'], sorted(groups))
+
+    def test_get_groups_multiple_ns(self):
+        config = [("namespace1", [
+                   ("beta", self.opts),
+                   ("alpha", self.opts)]),
+                  ("namespace2", [
+                   ("gamma", self.opts),
+                   ("alpha", self.opts)])]
+        groups = generator._get_groups(config)
+        self.assertEqual(['DEFAULT', 'alpha', 'beta', 'gamma'], sorted(groups))
+
+    def test_output_opts_empty_default(self):
+
+        config = [("namespace1", [
+                   ("alpha", [])])]
+        groups = generator._get_groups(config)
+
+        fd, tmp_file = tempfile.mkstemp()
+        f = open(tmp_file, 'w+')
+        formatter = generator._OptFormatter(output_file=f)
+        expected = '''[DEFAULT]
+'''
+        generator._output_opts(formatter, 'DEFAULT', groups.pop('DEFAULT'))
+        f.close()
+        content = open(tmp_file).read()
+        self.assertEqual(expected, content)
+
+    def test_output_opts_group(self):
+
+        config = [("namespace1", [
+                   ("alpha", [self.opts[0]])])]
+        groups = generator._get_groups(config)
+
+        fd, tmp_file = tempfile.mkstemp()
+        f = open(tmp_file, 'w+')
+        formatter = generator._OptFormatter(output_file=f)
+        expected = '''[alpha]
+
+#
+# From namespace1
+#
+
+# foo option (string value)
+#foo = fred
+'''
+        generator._output_opts(formatter, 'alpha', groups.pop('alpha'))
+        f.close()
+        content = open(tmp_file).read()
+        self.assertEqual(expected, content)
 
 
 class GeneratorRaiseErrorTestCase(base.BaseTestCase):
@@ -798,6 +969,45 @@ class GeneratorRaiseErrorTestCase(base.BaseTestCase):
         testargs = ['oslo-config-generator']
         with mock.patch('sys.argv', testargs):
             self.assertRaises(cfg.RequiredOptError, generator.main, [])
+
+
+class ChangeDefaultsTestCase(base.BaseTestCase):
+
+    @mock.patch.object(generator, '_get_opt_default_updaters')
+    @mock.patch.object(generator, '_get_raw_opts_loaders')
+    def test_no_modifiers_registered(self, raw_opts_loaders, get_updaters):
+        orig_opt = cfg.StrOpt('foo', default='bar')
+        raw_opts_loaders.return_value = [
+            ('namespace', lambda: [(None, [orig_opt])]),
+        ]
+        get_updaters.return_value = []
+
+        opts = generator._list_opts(['namespace'])
+        # NOTE(dhellmann): Who designed this data structure?
+        the_opt = opts[0][1][0][1][0]
+
+        self.assertEqual('bar', the_opt.default)
+        self.assertIs(orig_opt, the_opt)
+
+    @mock.patch.object(generator, '_get_opt_default_updaters')
+    @mock.patch.object(generator, '_get_raw_opts_loaders')
+    def test_change_default(self, raw_opts_loaders, get_updaters):
+        orig_opt = cfg.StrOpt('foo', default='bar')
+        raw_opts_loaders.return_value = [
+            ('namespace', lambda: [(None, [orig_opt])]),
+        ]
+
+        def updater():
+            cfg.set_defaults([orig_opt], foo='blah')
+
+        get_updaters.return_value = [updater]
+
+        opts = generator._list_opts(['namespace'])
+        # NOTE(dhellmann): Who designed this data structure?
+        the_opt = opts[0][1][0][1][0]
+
+        self.assertEqual('blah', the_opt.default)
+        self.assertIs(orig_opt, the_opt)
 
 
 GeneratorTestCase.generate_scenarios()
