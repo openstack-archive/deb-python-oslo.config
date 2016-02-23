@@ -15,6 +15,7 @@ Build-Depends: debhelper (>= 9),
 Build-Depends-Indep: bandit,
                      python-coverage,
                      python-debtcollector,
+                     python-docutils,
                      python-fixtures (>= 1.3.1),
                      python-hacking (>= 0.10.0),
                      python-mimeparse,
@@ -28,6 +29,7 @@ Build-Depends-Indep: bandit,
                      python-testscenarios,
                      python-testtools (>= 1.4.0),
                      python3-debtcollector,
+                     python3-docutils,
                      python3-fixtures (>= 1.3.1),
                      python3-mimeparse,
                      python3-mock (>= 1.3),
@@ -49,6 +51,7 @@ Homepage: https://github.com/openstack/oslo.config
 Package: python-oslo.config
 Architecture: all
 Depends: python-debtcollector,
+         python-docutils,
          python-netaddr (>= 0.7.12),
          python-pbr (>= 1.8),
          python-six (>= 1.9.0),
@@ -69,6 +72,7 @@ Description: Common code for Openstack Projects (configuration API) - Python 2.x
 Package: python3-oslo.config
 Architecture: all
 Depends: python3-debtcollector,
+         python3-docutils,
          python3-netaddr (>= 0.7.12),
          python3-pbr (>= 1.8),
          python3-six (>= 1.9.0),
