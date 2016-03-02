@@ -1,14 +1,17 @@
-python-oslo.config (1:3.8.0-1) UNRELEASED; urgency=medium
+python-oslo.config (1:3.9.0-1) experimental; urgency=medium
 
-  * New upstream release.
-  * d/control: Align (Build-)Depends with upstream.
+  [ Corey Bryant ]
   * d/p/remove-argparse-from-requirements.patch: Dropped. No longer needed.
   * d/control: Add python(3)-docutils to (Build-)Depends.
   * d/control: Add python3-sphinx to Build-Depends.
   * d/p/debian/patches/drop-doc-conf-git.patch: Drop git from sphinx config
     file as git repository is not avialable during package builds.
 
- -- Corey Bryant <corey.bryant@canonical.com>  Tue, 23 Feb 2016 13:09:33 -0500
+  [ Thomas Goirand ]
+  * New upstream release.
+  * d/control: Align (Build-)Depends with upstream.
+
+ -- Thomas Goirand <zigo@debian.org>  Wed, 02 Mar 2016 10:00:07 +0000
 
 python-oslo.config (1:3.2.1-2) experimental; urgency=medium
 
