@@ -1,0 +1,25 @@
+Description: Fix isinstance call
+ Neutron folks are seeing the following message when generating their config
+ Clearly the 2nd parameter should be the class
+Author: Davanum Srinivas <davanum@gmail.com>
+Date: Fri, 11 Mar 2016 13:42:15 -0500
+Change-Id: I88416f940bf6d366f113c3d482349ff4c890bd9e
+Origin: upstream, https://review.openstack.org/#/c/291857/
+Last-Update: 2016-03-11
+
+diff --git a/oslo_config/generator.py b/oslo_config/generator.py
+index 903bb06..9a84b0c 100644
+--- a/oslo_config/generator.py
++++ b/oslo_config/generator.py
+@@ -204,7 +204,7 @@ class _OptFormatter(object):
+             # https://bugs.launchpad.net/keystoneauth/+bug/1548433 for
+             # more details.
+             import warnings
+-            if not isinstance(cfg.Opt, opt):
++            if not isinstance(opt, cfg.Opt):
+                 warnings.warn(
+                     'Incompatible option class for %s (%r): %s' %
+                     (opt.dest, opt.__class__, err),
+-- 
+1.9.1
+
