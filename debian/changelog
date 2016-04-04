@@ -1,3 +1,9 @@
+python-oslo.config (1:3.9.0-3) unstable; urgency=medium
+
+  * Uploading to unstable.
+
+ -- Thomas Goirand <zigo@debian.org>  Mon, 04 Apr 2016 07:45:56 +0000
+
 python-oslo.config (1:3.9.0-2) experimental; urgency=medium
 
   * Added Fix_isinstance_call.patch, fixing Neutron config generation.
