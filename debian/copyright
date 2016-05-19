@@ -1,6 +1,6 @@
 Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: oslo.config
-Source: git://github.com/openstack/oslo.config.git
+Source: https://github.com/openstack/oslo.config
 
 Files: *
 Copyright: 2012-2013, The openstack foundation and contributors
