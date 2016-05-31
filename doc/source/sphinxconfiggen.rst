@@ -4,7 +4,7 @@ Sphinx Oslo Sample Config Generation
 
 Included with oslo.config is a sphinx extension to generate a sample config
 file at the beginning of each sphinx build. To activate the extension add
-``oslo_config.sphinxgenconfig`` to the list of extensions in your sphinx
+``oslo_config.sphinxconfiggen`` to the list of extensions in your sphinx
 ``conf.py``.
 
 Then you just need to use the ``config_generator_config_file`` option to point
@@ -17,7 +17,7 @@ Output File Name
 
 By default the sphinx plugin will generate the sample config file and name the
 file sample.config. However, if for whatever reason you'd like the name to be
-more specific to the project name you can use the ``config_sample_basename``
+more specific to the project name you can use the ``sample_config_basename``
 config option to specify the project name. If it's set the output filename
 will be that value with a .conf.sample extension. For example if you set that
 to be nova the output filename will be nova.conf.sample. You can also put a

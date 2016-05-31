@@ -171,8 +171,8 @@ defined by the alphabetic sorting order of their file names.
 The parsing of CLI args and config files is initiated by invoking the config
 manager for example::
 
-    conf = ConfigOpts()
-    conf.register_opt(BoolOpt('verbose', ...))
+    conf = cfg.ConfigOpts()
+    conf.register_opt(cfg.BoolOpt('verbose', ...))
     conf(sys.argv[1:])
     if conf.verbose:
         ...
@@ -333,8 +333,8 @@ Positional Command Line Arguments
 Positional command line arguments are supported via a 'positional' Opt
 constructor argument::
 
-    >>> conf = ConfigOpts()
-    >>> conf.register_cli_opt(MultiStrOpt('bar', positional=True))
+    >>> conf = cfg.ConfigOpts()
+    >>> conf.register_cli_opt(cfg.MultiStrOpt('bar', positional=True))
     True
     >>> conf(['a', 'b'])
     >>> conf.bar
@@ -350,8 +350,8 @@ command line arguments using the SubCommandOpt class:
     ...     list_action = subparsers.add_parser('list')
     ...     list_action.add_argument('id')
     ...
-    >>> conf = ConfigOpts()
-    >>> conf.register_cli_opt(SubCommandOpt('action', handler=add_parsers))
+    >>> conf = cfg.ConfigOpts()
+    >>> conf.register_cli_opt(cfg.SubCommandOpt('action', handler=add_parsers))
     True
     >>> conf(args=['list', '10'])
     >>> conf.action.name, conf.action.id
@@ -2058,10 +2058,12 @@ class ConfigOpts(collections.Mapping):
             default_config_files = find_config_files(project, prog)
 
         self._oparser = _CachedArgumentParser(prog=prog, usage=usage)
-        self._oparser.add_parser_argument(self._oparser,
-                                          '--version',
-                                          action='version',
-                                          version=version)
+
+        if version is not None:
+            self._oparser.add_parser_argument(self._oparser,
+                                              '--version',
+                                              action='version',
+                                              version=version)
 
         return prog, default_config_files
 
@@ -2394,7 +2396,7 @@ class ConfigOpts(collections.Mapping):
             opt_info['override'] = override
 
     @__clear_cache
-    def set_default(self, name, default, group=None):
+    def set_default(self, name, default, group=None, enforce_type=False):
         """Override an opt's default value.
 
         Override the default value of given option. A command line or
@@ -2403,10 +2405,17 @@ class ConfigOpts(collections.Mapping):
         :param name: the name/dest of the opt
         :param default: the default value
         :param group: an option OptGroup object or group name
+        :param enforce_type: a boolean whether to convert the default
+         value to the option's type, None is *not* converted even
+         if enforce_type is True.
         :raises: NoSuchOptError, NoSuchGroupError
         """
         opt_info = self._get_opt_info(name, group)
-        opt_info['default'] = default
+        if enforce_type and default is not None:
+            opt_info['default'] = self._convert_value(default,
+                                                      opt_info['opt'])
+        else:
+            opt_info['default'] = default
 
     @__clear_cache
     def clear_override(self, name, group=None):
@@ -2884,8 +2893,8 @@ class ConfigOpts(collections.Mapping):
             except KeyError:
                 new = None
             if old != new:
-                LOG.warn("Ignoring change to immutable option %s.%s"
-                         % (groupname, opt.name))
+                LOG.warning("Ignoring change to immutable option %s.%s"
+                            % (groupname, opt.name))
 
     def _diff_ns(self, old_ns, new_ns):
         """Compare mutable option values between two namespaces.

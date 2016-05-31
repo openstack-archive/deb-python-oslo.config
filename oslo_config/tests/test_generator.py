@@ -91,7 +91,7 @@ class GeneratorTestCase(base.BaseTestCase):
             deprecated_for_removal=True,
             deprecated_reason='This was supposed to work but it really, '
                               'really did not. Always buy house insurance.',
-            help='Turn off stove'),
+            help='DEPRECATED: Turn off stove'),
         'deprecated_group': cfg.StrOpt('bar',
                                        deprecated_group='group1',
                                        deprecated_name='foobar',
@@ -427,7 +427,7 @@ class GeneratorTestCase(base.BaseTestCase):
 # From test
 #
 
-# deprecated for removal (string value)
+# DEPRECATED: deprecated for removal (string value)
 # This option is deprecated for removal.
 # Its value may be silently ignored in the future.
 #bar = <None>
@@ -445,7 +445,7 @@ class GeneratorTestCase(base.BaseTestCase):
 # From test
 #
 
-# Turn off stove (boolean value)
+# DEPRECATED: Turn off stove (boolean value)
 # This option is deprecated for removal.
 # Its value may be silently ignored in the future.
 # Reason: This was supposed to work but it really, really did not.
@@ -711,6 +711,78 @@ class GeneratorTestCase(base.BaseTestCase):
 # string with bad default (string value)
 #string_type_with_bad_default = 4096
 ''')),
+         ('str_opt_str_group',
+         dict(opts=[('test', [('foo',
+                               [opts['str_opt']]),
+                              (groups['foo'],
+                               [opts['int_opt']])]),
+                    ('foo', [('foo',
+                               [opts['bool_opt']])])],
+              expected='''[DEFAULT]
+
+
+[foo]
+# foo help
+
+#
+# From foo
+#
+
+# a boolean (boolean value)
+#bool_opt = false
+
+#
+# From test
+#
+
+# a string (string value)
+#str_opt = foo bar
+
+#
+# From test
+#
+
+# an integer (integer value)
+# Minimum value: 1
+# Maximum value: 20
+#int_opt = 10
+''')),
+         ('opt_str_opt_group',
+         dict(opts=[('test', [(groups['foo'],
+                               [opts['int_opt']]),
+                              ('foo',
+                               [opts['str_opt']])]),
+                    ('foo', [(groups['foo'],
+                              [opts['bool_opt']])])],
+              expected='''[DEFAULT]
+
+
+[foo]
+# foo help
+
+#
+# From foo
+#
+
+# a boolean (boolean value)
+#bool_opt = false
+
+#
+# From test
+#
+
+# an integer (integer value)
+# Minimum value: 1
+# Maximum value: 20
+#int_opt = 10
+
+#
+# From test
+#
+
+# a string (string value)
+#str_opt = foo bar
+''')),
     ]
 
     output_file_scenarios = [
@@ -782,8 +854,9 @@ class GeneratorTestCase(base.BaseTestCase):
         if self.stdout:
             self.assertEqual(self.expected, stdout.getvalue())
         else:
-            content = open(output_file).read()
-            self.assertEqual(self.expected, content)
+            with open(output_file, 'r') as f:
+                actual = f.read()
+            self.assertEqual(self.expected, actual)
 
         log_warning = getattr(self, 'log_warning', None)
         if log_warning is not None:
@@ -869,19 +942,10 @@ class GeneratorAdditionalTestCase(base.BaseTestCase):
             cfg.BoolOpt('bool_opt', help='a boolean'),
             cfg.IntOpt('int_opt', help='an integer')]
 
-    def test_get_group_name(self):
-        name = "group1"
-        item = [name]
-        self.assertEqual(name, generator._get_group_name(item))
-
-    def test_get_group_name_as_optgroup(self):
-        name = "group2"
-        item = [cfg.OptGroup(name)]
-        self.assertEqual(name, generator._get_group_name(item))
-
     def test_get_groups_empty_ns(self):
         groups = generator._get_groups([])
-        self.assertEqual({'DEFAULT': []}, groups)
+        self.assertEqual({'DEFAULT': {'object': None, 'namespaces': []}},
+                         groups)
 
     def test_get_groups_single_ns(self):
         config = [("namespace1", [
@@ -907,14 +971,14 @@ class GeneratorAdditionalTestCase(base.BaseTestCase):
         groups = generator._get_groups(config)
 
         fd, tmp_file = tempfile.mkstemp()
-        f = open(tmp_file, 'w+')
-        formatter = generator._OptFormatter(output_file=f)
+        with open(tmp_file, 'w+') as f:
+            formatter = generator._OptFormatter(output_file=f)
+            generator._output_opts(formatter, 'DEFAULT', groups.pop('DEFAULT'))
         expected = '''[DEFAULT]
 '''
-        generator._output_opts(formatter, 'DEFAULT', groups.pop('DEFAULT'))
-        f.close()
-        content = open(tmp_file).read()
-        self.assertEqual(expected, content)
+        with open(tmp_file, 'r') as f:
+            actual = f.read()
+        self.assertEqual(expected, actual)
 
     def test_output_opts_group(self):
 
@@ -923,8 +987,9 @@ class GeneratorAdditionalTestCase(base.BaseTestCase):
         groups = generator._get_groups(config)
 
         fd, tmp_file = tempfile.mkstemp()
-        f = open(tmp_file, 'w+')
-        formatter = generator._OptFormatter(output_file=f)
+        with open(tmp_file, 'w+') as f:
+            formatter = generator._OptFormatter(output_file=f)
+            generator._output_opts(formatter, 'alpha', groups.pop('alpha'))
         expected = '''[alpha]
 
 #
@@ -934,10 +999,9 @@ class GeneratorAdditionalTestCase(base.BaseTestCase):
 # foo option (string value)
 #foo = fred
 '''
-        generator._output_opts(formatter, 'alpha', groups.pop('alpha'))
-        f.close()
-        content = open(tmp_file).read()
-        self.assertEqual(expected, content)
+        with open(tmp_file, 'r') as f:
+            actual = f.read()
+        self.assertEqual(expected, actual)
 
 
 class GeneratorMutableOptionTestCase(base.BaseTestCase):
