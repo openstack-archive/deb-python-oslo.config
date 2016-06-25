@@ -375,6 +375,7 @@ import sys
 import six
 from six import moves
 
+from oslo_config._i18n import _LI, _LW
 from oslo_config import iniparser
 from oslo_config import types
 
@@ -817,9 +818,10 @@ class Opt(object):
         if self.deprecated_for_removal and not self._logged_deprecation:
             self._logged_deprecation = True
             pretty_group = group_name or 'DEFAULT'
-            LOG.warning('Option "%s" from group "%s" is deprecated for '
-                        'removal.  Its value may be silently ignored in the '
-                        'future.', self.dest, pretty_group)
+            LOG.warning(_LW('Option "%(option)s" from group "%(group)s" is '
+                            'deprecated for removal.  Its value may be '
+                            'silently ignored in the future.'),
+                        {'option': self.dest, 'group': pretty_group})
         return value
 
     def _add_to_cli(self, parser, group=None):
@@ -1660,8 +1662,9 @@ class MultiConfigParser(object):
     _Namespace.
     """
 
-    _deprecated_opt_message = ('Option "%s" from group "%s" is deprecated. '
-                               'Use option "%s" from group "%s".')
+    _deprecated_opt_message = _LW('Option "%(dep_option)s" from group '
+                                  '"%(dep_group)s" is deprecated. Use option '
+                                  '"%(option)s" from group "%(group)s".')
 
     def __init__(self):
         self.parsed = []
@@ -1751,8 +1754,9 @@ class MultiConfigParser(object):
             # NOTE(bnemec): Not using versionutils for this to avoid a
             # circular dependency between oslo.config and whatever library
             # versionutils ends up in.
-            LOG.warning(self._deprecated_opt_message, name[1],
-                        name[0], current[1], current[0])
+            LOG.warning(self._deprecated_opt_message,
+                        {'dep_option': name[1], 'dep_group': name[0],
+                         'option': current[1], 'group': current[0]})
 
 
 class _Namespace(argparse.Namespace):
@@ -1769,8 +1773,9 @@ class _Namespace(argparse.Namespace):
     or convert a config file value at this point.
     """
 
-    _deprecated_opt_message = ('Option "%s" from group "%s" is deprecated. '
-                               'Use option "%s" from group "%s".')
+    _deprecated_opt_message = _LW('Option "%(dep_option)s" from group '
+                                  '"%(dep_group)s" is deprecated. Use option '
+                                  '"%(option)s" from group "%(group)s".')
 
     def __init__(self, conf):
         self._conf = conf
@@ -1930,8 +1935,9 @@ class _Namespace(argparse.Namespace):
             # NOTE(bnemec): Not using versionutils for this to avoid a
             # circular dependency between oslo.config and whatever library
             # versionutils ends up in.
-            LOG.warning(self._deprecated_opt_message, name[1],
-                        name[0], current[1], current[0])
+            LOG.warning(self._deprecated_opt_message,
+                        {'dep_option': name[1], 'dep_group': name[0],
+                         'option': current[1], 'group': current[0]})
 
     def _get_value(self, names, multi=False, positional=False,
                    current_name=None, normalized=True):
@@ -2031,6 +2037,8 @@ class ConfigOpts(collections.Mapping):
     :oslo.config:option:`config_dir` options.
 
     """
+    disallow_names = ('project', 'prog', 'version',
+                      'usage', 'default_config_files')
 
     def __init__(self):
         """Construct a ConfigOpts object."""
@@ -2251,6 +2259,14 @@ class ConfigOpts(collections.Mapping):
                 self._add_cli_opt(opt, group)
             return group._register_opt(opt, cli)
 
+        # NOTE(gcb) We can't use some names which are same with attributes of
+        # Opts in default group. They includes project, prog, version, usage
+        # and default_config_files.
+        if group is None:
+            if opt.name in self.disallow_names:
+                raise ValueError('Name %s was reserved for oslo.config.'
+                                 % opt.name)
+
         if cli:
             self._add_cli_opt(opt, None)
 
@@ -2465,6 +2481,8 @@ class ConfigOpts(collections.Mapping):
 
     @property
     def config_dirs(self):
+        if self._namespace is None:
+            return []
         return self._namespace._config_dirs
 
     def find_file(self, name):
@@ -2821,12 +2839,12 @@ class ConfigOpts(collections.Mapping):
         try:
             namespace = self._reload_config_files()
         except SystemExit as exc:
-            LOG.warning("Caught SystemExit while reloading configure files "
-                        "with exit code: %d", exc.code)
+            LOG.warning(_LW("Caught SystemExit while reloading configure "
+                            "files with exit code: %d"), exc.code)
             return False
         except Error as err:
-            LOG.warning("Caught Error while reloading configure files: %s",
-                        err)
+            LOG.warning(_LW("Caught Error while reloading configure files: "
+                            " %s"), err)
             return False
         else:
             self._namespace = namespace
@@ -2867,8 +2885,12 @@ class ConfigOpts(collections.Mapping):
         sorted_fresh = sorted(fresh.items(), key=key_fn)
         for (groupname, optname), (old, new) in sorted_fresh:
             groupname = groupname if groupname else 'DEFAULT'
-            LOG.info("Option %s.%s changed from [%s] to [%s]",
-                     groupname, optname, old, new)
+            LOG.info(_LI("Option %(group)s.%(option)s changed from "
+                         "[%(old_val)s] to [%(new_val)s]"),
+                     {'group': groupname,
+                      'option': optname,
+                      'old_val': old,
+                      'new_val': new})
         for hook in self._mutate_hooks:
             hook(self, fresh)
         return fresh
@@ -2893,8 +2915,9 @@ class ConfigOpts(collections.Mapping):
             except KeyError:
                 new = None
             if old != new:
-                LOG.warning("Ignoring change to immutable option %s.%s"
-                            % (groupname, opt.name))
+                LOG.warning(_LW("Ignoring change to immutable option "
+                                "%(group)s.%(option)s"),
+                            {"group": groupname, "option": opt.name})
 
     def _diff_ns(self, old_ns, new_ns):
         """Compare mutable option values between two namespaces.

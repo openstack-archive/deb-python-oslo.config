@@ -28,6 +28,7 @@ import netaddr
 import six
 
 
+@six.add_metaclass(abc.ABCMeta)
 class ConfigType(object):
     def __init__(self, type_name='unknown type'):
         self.type_name = type_name
@@ -447,6 +448,8 @@ class List(ConfigType):
         )
 
     def _formatter(self, value):
+        if isinstance(value, six.string_types):
+            return value
         return ','.join(value)
 
 

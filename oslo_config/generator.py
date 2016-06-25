@@ -32,6 +32,7 @@ import textwrap
 import pkg_resources
 import six
 
+from oslo_config._i18n import _LW
 from oslo_config import cfg
 import stevedore.named  # noqa
 
@@ -93,7 +94,7 @@ def _format_defaults(opt):
                                   key=operator.itemgetter(0))
             default_str = ','.join(['%s:%s' % i for i in sorted_items])
         else:
-            LOG.warning('Unknown option type: %s', repr(opt))
+            LOG.warning(_LW('Unknown option type: %s'), repr(opt))
             default_str = str(opt.default)
         defaults = [default_str]
 
@@ -160,13 +161,13 @@ class _OptFormatter(object):
             lines = ['[%s]\n' % groupname]
         self.writelines(lines)
 
-    def format(self, opt):
+    def format(self, opt, group_name):
         """Format a description of an option to the output file.
 
         :param opt: a cfg.Opt instance
         """
         if not opt.help:
-            LOG.warning('"%s" is missing a help string', opt.dest)
+            LOG.warning(_LW('"%s" is missing a help string'), opt.dest)
 
         option_type = getattr(opt, 'type', None)
         opt_type = getattr(option_type, 'type_name', 'unknown value')
@@ -221,7 +222,7 @@ class _OptFormatter(object):
 
         for d in opt.deprecated_opts:
             lines.append('# Deprecated group/name - [%s]/%s\n' %
-                         (d.group or 'DEFAULT', d.name or opt.dest))
+                         (d.group or group_name, d.name or opt.dest))
 
         if opt.deprecated_for_removal:
             lines.append(
@@ -361,7 +362,7 @@ def _output_opts(f, group, group_data):
         for opt in opts:
             f.write('\n')
             try:
-                f.format(opt)
+                f.format(opt, group)
             except Exception as err:
                 f.write('# Warning: Failed to format sample for %s\n' %
                         (opt.dest,))

@@ -18,6 +18,25 @@ import unittest
 from oslo_config import types
 
 
+class ConfigTypeTests(unittest.TestCase):
+    def test_none_concrete_class(self):
+        class MyString(types.ConfigType):
+            def __init__(self, type_name='mystring value'):
+                super(MyString, self).__init__(type_name=type_name)
+
+        self.assertRaises(TypeError, MyString)
+
+    def test_concrete_class(self):
+        class MyString(types.ConfigType):
+            def __init__(self, type_name='mystring value'):
+                super(MyString, self).__init__(type_name=type_name)
+
+            def _formatter(self, value):
+                return value
+
+        MyString()
+
+
 class TypeTestHelper(object):
     def setUp(self):
         super(TypeTestHelper, self).setUp()
@@ -572,7 +591,6 @@ class HostnameTypeTests(TypeTestHelper, unittest.TestCase):
         self.assertEqual('Hostname', repr(types.Hostname()))
 
     def test_equal(self):
-        self.assertEqual(types.Hostname(), types.Hostname())
         self.assertEqual(types.Hostname(), types.Hostname())
 
     def test_not_equal_to_other_class(self):
