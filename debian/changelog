@@ -1,6 +1,6 @@
 python-oslo.config (1:3.12.0-1) UNRELEASED; urgency=medium
 
-  * New upstream release for OpenStack Newton.
+  * New upstream release.
   * d/control: Align (build-)depends with upstream.
 
  -- David Della Vecchia <ddv@canonical.com>  Thu, 30 Jun 2016 10:41:13 -0400
