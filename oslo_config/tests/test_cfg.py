@@ -494,6 +494,13 @@ class CliOptsTestCase(BaseTestCase):
         ('port_arg_deprecated_group_and_name',
          dict(opt_class=cfg.PortOpt, default=None,
               cli_args=['--old-oof=80'], value=80, deps=('oof', 'old'))),
+        ('uri_default',
+         dict(opt_class=cfg.URIOpt, default='http://example.com',
+              cli_args=[], value='http://example.com', deps=(None, None))),
+        ('uri_arg',
+         dict(opt_class=cfg.URIOpt, default=None,
+              cli_args=['--foo', 'http://example.com'],
+              value='http://example.com', deps=(None, None))),
         ('multistr_default',
          dict(opt_class=cfg.MultiStrOpt, default=['bar'], cli_args=[],
               value=['bar'], deps=(None, None))),
@@ -658,6 +665,17 @@ class PositionalTestCase(BaseTestCase):
 
     def test_positional_port_arg(self):
         self._do_pos_test(cfg.PortOpt, None, ['443'], 443)
+
+    def test_positional_uri_default(self):
+        self._do_pos_test(cfg.URIOpt, 'http://example.com', [],
+                          'http://example.com')
+
+    def test_positional_uri_none_default(self):
+        self._do_pos_test(cfg.URIOpt, None, [], None)
+
+    def test_positional_uri_arg(self):
+        self._do_pos_test(cfg.URIOpt, None, ['http://example.com'],
+                          'http://example.com')
 
     def test_positional_multistr_none_default(self):
         self._do_pos_test(cfg.MultiStrOpt, None, [], None)
@@ -2490,6 +2508,69 @@ class TemplateSubstitutionTestCase(BaseTestCase):
         self.assertTrue(hasattr(self.conf.ba, 'r'))
         self.assertEqual(self.conf.ba.foo, '4242')
         self.assertEqual(self.conf.ba.r, 4242)
+
+    def test_dict_sub_default_from_default(self):
+        self.conf.register_cli_opt(cfg.StrOpt('foo', default='floo'))
+        self.conf.register_cli_opt(cfg.StrOpt('bar', default='blaa'))
+        self.conf.register_cli_opt(cfg.DictOpt('dt', default={'$foo': '$bar'}))
+
+        self.conf([])
+
+        self.assertEqual(self.conf.dt['floo'], 'blaa')
+
+    def test_dict_sub_default_from_default_multi(self):
+        self.conf.register_cli_opt(cfg.StrOpt('foo', default='floo'))
+        self.conf.register_cli_opt(cfg.StrOpt('bar', default='blaa'))
+        self.conf.register_cli_opt(cfg.StrOpt('goo', default='gloo'))
+        self.conf.register_cli_opt(cfg.StrOpt('har', default='hlaa'))
+        self.conf.register_cli_opt(cfg.DictOpt('dt', default={'$foo': '$bar',
+                                                              '$goo': 'goo',
+                                                              'har': '$har',
+                                                              'key1': 'str',
+                                                              'key2': 12345}))
+
+        self.conf([])
+
+        self.assertEqual(self.conf.dt['floo'], 'blaa')
+        self.assertEqual(self.conf.dt['gloo'], 'goo')
+        self.assertEqual(self.conf.dt['har'], 'hlaa')
+        self.assertEqual(self.conf.dt['key1'], 'str')
+        self.assertEqual(self.conf.dt['key2'], 12345)
+
+    def test_dict_sub_default_from_default_recurse(self):
+        self.conf.register_cli_opt(cfg.StrOpt('foo', default='$foo2'))
+        self.conf.register_cli_opt(cfg.StrOpt('foo2', default='floo'))
+        self.conf.register_cli_opt(cfg.StrOpt('bar', default='$bar2'))
+        self.conf.register_cli_opt(cfg.StrOpt('bar2', default='blaa'))
+        self.conf.register_cli_opt(cfg.DictOpt('dt', default={'$foo': '$bar'}))
+
+        self.conf([])
+
+        self.assertEqual(self.conf.dt['floo'], 'blaa')
+
+    def test_dict_sub_default_from_arg(self):
+        self.conf.register_cli_opt(cfg.StrOpt('foo', default=None))
+        self.conf.register_cli_opt(cfg.StrOpt('bar', default=None))
+        self.conf.register_cli_opt(cfg.DictOpt('dt', default={'$foo': '$bar'}))
+
+        self.conf(['--foo', 'floo', '--bar', 'blaa'])
+
+        self.assertTrue(hasattr(self.conf, 'dt'))
+        self.assertEqual(self.conf.dt['floo'], 'blaa')
+
+    def test_dict_sub_default_from_config_file(self):
+        self.conf.register_cli_opt(cfg.StrOpt('foo', default='floo'))
+        self.conf.register_cli_opt(cfg.StrOpt('bar', default='blaa'))
+        self.conf.register_cli_opt(cfg.DictOpt('dt', default={}))
+
+        paths = self.create_tempfiles([('test',
+                                        '[DEFAULT]\n'
+                                        'dt = $foo:$bar\n')])
+
+        self.conf(['--config-file', paths[0]])
+
+        self.assertTrue(hasattr(self.conf, 'dt'))
+        self.assertEqual(self.conf.dt['floo'], 'blaa')
 
 
 class ConfigDirTestCase(BaseTestCase):

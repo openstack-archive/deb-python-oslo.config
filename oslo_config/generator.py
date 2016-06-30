@@ -48,6 +48,8 @@ _generator_opts = [
                     required=True,
                     help='Option namespace under "oslo.config.opts" in which '
                          'to query for options.'),
+    cfg.BoolOpt('minimal', default=False,
+                help='Generate a minimal required configuration.'),
 ]
 
 
@@ -77,9 +79,8 @@ def _format_defaults(opt):
             default_str = str(opt.sample_default)
         elif opt.default is None:
             default_str = '<None>'
-        elif (isinstance(opt, cfg.StrOpt) or
-              isinstance(opt, cfg.IPOpt) or
-              isinstance(opt, cfg.HostnameOpt)):
+        elif (isinstance(opt, (cfg.StrOpt, cfg.IPOpt,
+                               cfg.HostnameOpt, cfg.URIOpt))):
             default_str = opt.default
         elif isinstance(opt, cfg.BoolOpt):
             default_str = str(opt.default).lower()
@@ -104,6 +105,28 @@ def _format_defaults(opt):
             default_str = '"%s"' % default_str
         results.append(default_str)
     return results
+
+
+_TYPE_NAMES = {
+    str: 'string value',
+    int: 'integer value',
+    float: 'floating point value',
+}
+
+
+def _format_type_name(opt_type):
+    """Format the type name to use in describing an option"""
+    try:
+        return opt_type.type_name
+    except AttributeError:  # nosec
+        pass
+
+    try:
+        return _TYPE_NAMES[opt_type]
+    except KeyError:  # nosec
+        pass
+
+    return 'unknown value'
 
 
 class _OptFormatter(object):
@@ -161,7 +184,7 @@ class _OptFormatter(object):
             lines = ['[%s]\n' % groupname]
         self.writelines(lines)
 
-    def format(self, opt, group_name):
+    def format(self, opt, group_name, minimal=False):
         """Format a description of an option to the output file.
 
         :param opt: a cfg.Opt instance
@@ -169,9 +192,7 @@ class _OptFormatter(object):
         if not opt.help:
             LOG.warning(_LW('"%s" is missing a help string'), opt.dest)
 
-        option_type = getattr(opt, 'type', None)
-        opt_type = getattr(option_type, 'type_name', 'unknown value')
-
+        opt_type = _format_type_name(opt.type)
         opt_prefix = ''
         if (opt.deprecated_for_removal and
                 not opt.help.startswith('DEPRECATED')):
@@ -225,8 +246,14 @@ class _OptFormatter(object):
                          (d.group or group_name, d.name or opt.dest))
 
         if opt.deprecated_for_removal:
+            if opt.deprecated_since:
+                lines.append(
+                    '# This option is deprecated for removal since %s.\n' % (
+                        opt.deprecated_since))
+            else:
+                lines.append(
+                    '# This option is deprecated for removal.\n')
             lines.append(
-                '# This option is deprecated for removal.\n'
                 '# Its value may be silently ignored in the future.\n')
             if opt.deprecated_reason:
                 lines.extend(
@@ -246,7 +273,10 @@ class _OptFormatter(object):
         for default_str in defaults:
             if default_str:
                 default_str = ' ' + default_str
-            lines.append('#%s =%s\n' % (opt.dest, default_str))
+            if minimal:
+                lines.append('%s =%s\n' % (opt.dest, default_str))
+            else:
+                lines.append('#%s =%s\n' % (opt.dest, default_str))
 
         self.writelines(lines)
 
@@ -354,15 +384,18 @@ def on_load_failure_callback(*args, **kwargs):
     raise
 
 
-def _output_opts(f, group, group_data):
+def _output_opts(f, group, group_data, minimal=False):
     f.format_group(group_data['object'] or group)
     for (namespace, opts) in sorted(group_data['namespaces'],
                                     key=operator.itemgetter(0)):
         f.write('\n#\n# From %s\n#\n' % namespace)
         for opt in opts:
-            f.write('\n')
             try:
-                f.format(opt, group)
+                if minimal and not opt.required:
+                    pass
+                else:
+                    f.write('\n')
+                    f.format(opt, group, minimal)
             except Exception as err:
                 f.write('# Warning: Failed to format sample for %s\n' %
                         (opt.dest,))
@@ -421,12 +454,12 @@ def generate(conf):
     groups = _get_groups(_list_opts(conf.namespace))
 
     # Output the "DEFAULT" section as the very first section
-    _output_opts(formatter, 'DEFAULT', groups.pop('DEFAULT'))
+    _output_opts(formatter, 'DEFAULT', groups.pop('DEFAULT'), conf.minimal)
 
     # output all other config sections with groups in alphabetical order
     for group, group_data in sorted(groups.items()):
         formatter.write('\n\n')
-        _output_opts(formatter, group, group_data)
+        _output_opts(formatter, group, group_data, conf.minimal)
 
 
 def main(args=None):
