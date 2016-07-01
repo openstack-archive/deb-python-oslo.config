@@ -1,48 +1,24 @@
 #!/usr/bin/make -f
 
-PYTHONS:=$(shell pyversions -vr)
-PYTHON3S:=$(shell py3versions -vr)
-
-UPSTREAM_GIT := https://github.com/openstack/oslo.config.git
-
 LAST_CHANGE = $(shell dpkg-parsechangelog -S Date)
 BUILD_DATE  = $(shell LC_ALL=C date -u "+%B %d, %Y" -d "$(LAST_CHANGE)")
 SPHINXOPTS := -D html_last_updated_fmt="$(BUILD_DATE)"
 
+UPSTREAM_GIT := https://github.com/openstack/oslo.config.git
 include /usr/share/openstack-pkg-tools/pkgos.make
-export OSLO_PACKAGE_VERSION=$(VERSION)
 
 %:
 	dh $@ --buildsystem=python_distutils --with python2,python3,sphinxdoc
 
 override_dh_auto_install:
-	set -e && for pyvers in $(PYTHONS); do \
-		python$$pyvers setup.py install --install-layout=deb \
-			--root $(CURDIR)/debian/python-oslo.config; \
-	done
-	set -e && for pyvers in $(PYTHON3S); do \
-		python$$pyvers setup.py install --install-layout=deb \
-			--root $(CURDIR)/debian/python3-oslo.config; \
-	done
-	mv $(CURDIR)/debian/python-oslo.config/usr/bin/oslo-config-generator $(CURDIR)/debian/python-oslo.config/usr/bin/python2-oslo-config-generator
-	mv $(CURDIR)/debian/python3-oslo.config/usr/bin/oslo-config-generator $(CURDIR)/debian/python3-oslo.config/usr/bin/python3-oslo-config-generator
+	pkgos-dh_auto_install
 
 override_dh_python3:
 	dh_python3 --shebang=/usr/bin/python3
 
 override_dh_auto_test:
 ifeq (,$(findstring nocheck, $(DEB_BUILD_OPTIONS)))
-	set -e && set -x && \
-	for i in 2.7 $(PYTHON3S) ; do \
-		echo "===> Testing for python$$i" ; \
-		rm -rf .testrepository ; \
-		testr init ; \
-		TEMP_REZ=`mktemp -t` && \
-		PYTHON=python$$i PYTHONPATH=$(CURDIR) testr run --subunit 'oslo_config.*' | tee $$TEMP_REZ | subunit2pyunit ; \
-		cat $$TEMP_REZ | subunit-filter -s --no-passthrough | subunit-stats ; \
-		rm -f $$TEMP_REZ ; \
-		testr slowest ; \
-	done
+	pkgos-dh_auto_test
 endif
 
 override_dh_sphinxdoc:
@@ -54,3 +30,13 @@ endif
 override_dh_clean:
 	dh_clean -O--buildsystem=python_distutils
 	rm -rf .testrepository build
+
+# Commands not to run
+override_dh_installcatalogs:
+override_dh_installemacsen override_dh_installifupdown:
+override_dh_installinfo override_dh_installmenu override_dh_installmime:
+override_dh_installmodules override_dh_installlogcheck:
+override_dh_installpam override_dh_installppp override_dh_installudev override_dh_installwm:
+override_dh_installxfonts override_dh_gconf override_dh_icons override_dh_perl override_dh_usrlocal:
+override_dh_installcron override_dh_installdebconf:
+override_dh_installlogrotate override_dh_installgsettings:

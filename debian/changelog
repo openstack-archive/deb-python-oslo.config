@@ -6,6 +6,7 @@ python-oslo.config (1:3.12.0-2) UNRELEASED; urgency=medium
 
   [ Thomas Goirand ]
   * Drop old python-oslo-* transition packages.
+  * Switch to pkgos-dh_auto_{test,install}.
 
  -- Thomas Goirand <zigo@debian.org>  Fri, 01 Jul 2016 14:04:46 +0000
 
