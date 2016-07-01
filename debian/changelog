@@ -1,3 +1,9 @@
+python-oslo.config (1:3.12.0-2) experimental; urgency=medium
+
+  * Re-adds python3-sphinx build-depends.
+
+ -- Thomas Goirand <zigo@debian.org>  Fri, 01 Jul 2016 14:24:34 +0000
+
 python-oslo.config (1:3.12.0-1) experimental; urgency=medium
 
   [ David Della Vecchia ]
