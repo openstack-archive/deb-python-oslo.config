@@ -109,33 +109,3 @@ Description: Common code for Openstack Projects (configuration API) - doc
  arguments and .ini style configuration files.
  .
  This package provides the documentation.
-
-Package: python-oslo-config
-Section: oldlibs
-Priority: extra
-Architecture: all
-Depends: python-oslo.config,
-         ${misc:Depends},
-Description: transitional dummy package for python-oslo-config
- This transitional package is safe to remove and use python-oslo.config
- instead.
-
-Package: python-oslo-config-doc
-Section: oldlibs
-Priority: extra
-Architecture: all
-Depends: python-oslo.config-doc,
-         ${misc:Depends},
-Description: transitional dummy package for python-oslo-config-doc
- This transitional package is safe to remove and use python-oslo.config-doc
- instead.
-
-Package: python3-oslo-config
-Section: oldlibs
-Priority: extra
-Architecture: all
-Depends: python3-oslo.config,
-         ${misc:Depends},
-Description: transitional dummy package for python3-oslo-config
- This transitional package is safe to remove and use python3-oslo.config
- instead.

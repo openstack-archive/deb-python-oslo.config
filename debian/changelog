@@ -1,9 +1,13 @@
-python-oslo.config (1:3.12.0-1) UNRELEASED; urgency=medium
+python-oslo.config (1:3.12.0-2) UNRELEASED; urgency=medium
 
+  [ David Della Vecchia ]
   * New upstream release.
   * d/control: Align (build-)depends with upstream.
 
- -- David Della Vecchia <ddv@canonical.com>  Thu, 30 Jun 2016 10:41:13 -0400
+  [ Thomas Goirand ]
+  * Drop old python-oslo-* transition packages.
+
+ -- Thomas Goirand <zigo@debian.org>  Fri, 01 Jul 2016 14:04:46 +0000
 
 python-oslo.config (1:3.11.0-1) experimental; urgency=medium
 
