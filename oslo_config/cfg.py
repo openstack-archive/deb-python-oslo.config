@@ -59,6 +59,7 @@ Type                                  Option
 :class:`oslo_config.types.Dict`       :class:`oslo_config.cfg.DictOpt`
 :class:`oslo_config.types.IPAddress`  :class:`oslo_config.cfg.IPOpt`
 :class:`oslo_config.types.Hostname`   :class:`oslo_config.cfg.HostnameOpt`
+:class:`oslo_config.types.URI`        :class:`oslo_config.cfg.URIOpt`
 ====================================  ======
 
 For :class:`oslo_config.cfg.MultiOpt` the `item_type` parameter defines
@@ -362,7 +363,6 @@ command line arguments using the SubCommandOpt class:
 import argparse
 import collections
 import copy
-from debtcollector import removals
 import errno
 import functools
 import glob
@@ -372,6 +372,7 @@ import os
 import string
 import sys
 
+from debtcollector import removals
 import six
 from six import moves
 
@@ -418,7 +419,7 @@ class NoSuchOptError(Error, AttributeError):
 
     def __str__(self):
         group_name = 'DEFAULT' if self.group is None else self.group.name
-        return "no such option in group %s: %s" % (group_name, self.opt_name)
+        return "no such option %s in group [%s]" % (self.opt_name, group_name)
 
 
 class NoSuchGroupError(Error):
@@ -428,7 +429,7 @@ class NoSuchGroupError(Error):
         self.group_name = group_name
 
     def __str__(self):
-        return "no such group: %s" % self.group_name
+        return "no such group [%s]" % self.group_name
 
 
 class DuplicateOptError(Error):
@@ -449,11 +450,9 @@ class RequiredOptError(Error):
         self.group = group
 
     def __str__(self):
-        if self.group is None:
-            return "value required for option: %s" % self.opt_name
-        else:
-            return "value required for option: %s.%s" % (self.group.name,
-                                                         self.opt_name)
+        group_name = 'DEFAULT' if self.group is None else self.group.name
+        return "value required for option %s in group [%s]" % (self.opt_name,
+                                                               group_name)
 
 
 class TemplateSubstitutionError(Error):
@@ -1155,13 +1154,20 @@ class FloatOpt(Opt):
     """Option with Float type
 
     Option with ``type`` :class:`oslo_config.types.Float`
+    :param min: minimum value the float can take
+    :param max: maximum value the float can take
 
     :param name: the option's name
     :param \*\*kwargs: arbitrary keyword arguments passed to :class:`Opt`
+
+    .. versionchanged:: 3.14
+
+       Added *min* and *max* parameters.
     """
 
-    def __init__(self, name, **kwargs):
-        super(FloatOpt, self).__init__(name, type=types.Float(), **kwargs)
+    def __init__(self, name, min=None, max=None, **kwargs):
+        super(FloatOpt, self).__init__(name, type=types.Float(min, max),
+                                       **kwargs)
 
 
 class ListOpt(Opt):
@@ -1282,11 +1288,19 @@ class URIOpt(Opt):
 
     Option with ``type`` :class:`oslo_config.types.URI`
 
+    :param max_length: If positive integer, the value must be less than or
+                       equal to this parameter.
+
     .. versionadded:: 3.12
+
+    .. versionchanged:: 3.14
+       Added *max_length* parameter
     """
 
-    def __init__(self, name, **kwargs):
-        super(URIOpt, self).__init__(name, type=types.URI(), **kwargs)
+    def __init__(self, name, max_length=None, **kwargs):
+        super(URIOpt, self).__init__(name,
+                                     type=types.URI(max_length=max_length),
+                                     **kwargs)
 
 
 class MultiOpt(Opt):
