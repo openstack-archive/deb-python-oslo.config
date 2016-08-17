@@ -1,0 +1,12 @@
+Code-Review+1: Brandon Logan <brandon.logan@rackspace.com>
+Code-Review+1: Haifeng Yan <yanheven@qq.com>
+Code-Review+1: Eric Brown <browne@vmware.com>
+Code-Review+2: Joshua Harlow <jxharlow@godaddy.com>
+Code-Review+2: ChangBo Guo(gcb) <glongwave@gmail.com>
+Workflow+1: ChangBo Guo(gcb) <glongwave@gmail.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Fri, 05 Aug 2016 10:47:18 +0000
+Reviewed-on: https://review.openstack.org/304355
+Project: openstack/deb-python-oslo.config
+Branch: refs/heads/master
