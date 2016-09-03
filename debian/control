@@ -24,7 +24,7 @@ Build-Depends-Indep: bandit,
                      python-mimeparse,
                      python-mock (>= 2.0),
                      python-netaddr (>= 0.7.12),
-#                     python-oslo.i18n (>= 2.1.0),
+                     python-oslo.i18n (>= 2.1.0),
                      python-oslosphinx (>= 2.5.0),
                      python-oslotest (>= 1:1.10.0),
                      python-rfc3986 (>= 0.2.0),
@@ -38,7 +38,7 @@ Build-Depends-Indep: bandit,
                      python3-mimeparse,
                      python3-mock (>= 2.0),
                      python3-netaddr (>= 0.7.12),
-#                     python3-oslo.i18n (>= 2.1.0),
+                     python3-oslo.i18n (>= 2.1.0),
                      python3-oslotest (>= 1:1.10.0),
                      python3-rfc3986 (>= 0.2.0),
                      python3-six (>= 1.9.0),
@@ -97,16 +97,16 @@ Description: Common code for Openstack Projects (configuration API) - Python 3.x
  .
  This package provides the Python 3.x module.
 
-#Package: python-oslo.config-doc
-#Section: doc
-#Architecture: all
-#Depends: ${misc:Depends},
-#         ${sphinxdoc:Depends},
-#Description: Common code for Openstack Projects (configuration API) - doc
-# The OpenStack Oslo project provides Python libraries containing
-# infrastructure code shared by OpenStack projects.
-# .
-# The OpenStack Oslo Configuration API supports parsing command line
-# arguments and .ini style configuration files.
-# .
-# This package provides the documentation.
+Package: python-oslo.config-doc
+Section: doc
+Architecture: all
+Depends: ${misc:Depends},
+         ${sphinxdoc:Depends},
+Description: Common code for Openstack Projects (configuration API) - doc
+ The OpenStack Oslo project provides Python libraries containing
+ infrastructure code shared by OpenStack projects.
+ .
+ The OpenStack Oslo Configuration API supports parsing command line
+ arguments and .ini style configuration files.
+ .
+ This package provides the documentation.

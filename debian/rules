@@ -8,8 +8,7 @@ UPSTREAM_GIT := https://github.com/openstack/oslo.config.git
 include /usr/share/openstack-pkg-tools/pkgos.make
 
 %:
-	dh $@ --buildsystem=python_distutils --with python2,python3
-#,sphinxdoc
+	dh $@ --buildsystem=python_distutils --with python2,python3,sphinxdoc
 
 override_dh_auto_install:
 	pkgos-dh_auto_install
@@ -19,15 +18,14 @@ override_dh_python3:
 
 override_dh_auto_test:
 ifeq (,$(findstring nocheck, $(DEB_BUILD_OPTIONS)))
-	echo "Test disabled until oslo.i18n is available"
-#	pkgos-dh_auto_test 'oslo_config\.tests\.(?!.*test_generator\.IgnoreDoublesTestCase\.test_list_ignores_doubles.*)'
+	pkgos-dh_auto_test 'oslo_config\.tests\.(?!.*test_generator\.IgnoreDoublesTestCase\.test_list_ignores_doubles.*)'
 endif
 
-#override_dh_sphinxdoc:
-#ifeq (,$(findstring nodocs, $(DEB_BUILD_OPTIONS)))
-#	PYTHONPATH=$(CURDIR) sphinx-build $(SPHINXOPTS) -b html doc/source $(CURDIR)/debian/python-oslo.config-doc/usr/share/doc/python-oslo.config-doc/html
-#	dh_sphinxdoc -O--buildsystem=python_distutils
-#endif
+override_dh_sphinxdoc:
+ifeq (,$(findstring nodocs, $(DEB_BUILD_OPTIONS)))
+	PYTHONPATH=$(CURDIR) sphinx-build $(SPHINXOPTS) -b html doc/source $(CURDIR)/debian/python-oslo.config-doc/usr/share/doc/python-oslo.config-doc/html
+	dh_sphinxdoc -O--buildsystem=python_distutils
+endif
 
 override_dh_clean:
 	dh_clean -O--buildsystem=python_distutils
