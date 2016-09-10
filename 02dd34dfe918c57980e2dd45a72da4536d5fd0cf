@@ -1,0 +1,9 @@
+Code-Review+2: Alexis Lee <lxsli@hpe.com>
+Code-Review+1: Eric Brown <browne@vmware.com>
+Workflow+1: Joshua Harlow <jxharlow@godaddy.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Tue, 30 Aug 2016 18:13:06 +0000
+Reviewed-on: https://review.openstack.org/362362
+Project: openstack/deb-python-oslo.config
+Branch: refs/heads/master
