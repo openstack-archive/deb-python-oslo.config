@@ -1,1 +1,2 @@
+test-config-dir-doesnt-exist.patch
 do-not-run-toplevel-tests.patch

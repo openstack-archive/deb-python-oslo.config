@@ -358,6 +358,43 @@ command line arguments using the SubCommandOpt class:
     >>> conf.action.name, conf.action.id
     ('list', '10')
 
+Advanced Option
+---------------
+
+Use if you need to label an option as advanced in sample files, indicating the
+option is not normally used by the majority of users and might have a
+significant effect on stability and/or performance::
+
+    from oslo_config import cfg
+
+    opts = [
+        cfg.StrOpt('option1', default='default_value',
+                    advanced=True, help='This is help '
+                    'text.'),
+        cfg.PortOpt('option2', default='default_value',
+                     help='This is help text.'),
+    ]
+
+    CONF = cfg.CONF
+    CONF.register_opts(opts)
+
+This will result in the option being pushed to the bottom of the
+namespace and labeled as advanced in the sample files, with a notation
+about possible effects::
+
+    [DEFAULT]
+    ...
+    # This is help text. (string value)
+    # option2 = default_value
+    ...
+    <pushed to bottom of section>
+    ...
+    # This is help text. (string value)
+    # Advanced Option: intended for advanced users and not used
+    # by the majority of users, and might have a significant
+    # effect on stability and/or performance.
+    # option1 = default_value
+
 """
 
 import argparse
@@ -567,7 +604,8 @@ def find_config_files(project=None, prog=None, extension='.conf'):
     """Return a list of default configuration files.
 
     :param project: an optional project name
-    :param prog: the program name, defaulting to the basename of sys.argv[0]
+    :param prog: the program name, defaulting to the basename of
+        sys.argv[0], without extension .py
     :param extension: the type of the config file
 
     We default to two config files: [${project}.conf, ${prog}.conf]
@@ -590,6 +628,8 @@ def find_config_files(project=None, prog=None, extension='.conf'):
     """
     if prog is None:
         prog = os.path.basename(sys.argv[0])
+        if prog.endswith(".py"):
+            prog = prog[:-3]
 
     cfg_dirs = _get_config_dirs(project)
 
@@ -666,6 +706,8 @@ class Opt(object):
                              strings are encouraged. Silently ignored if
                              deprecated_for_removal is False
     :param mutable: True if this option may be reloaded
+    :param advanced: a bool True/False value if this option has advanced usage
+                             and is not normally used by the majority of users
 
     An Opt object has no public methods, but has a number of public properties:
 
@@ -708,6 +750,10 @@ class Opt(object):
 
         a string explaining how the option's value is used
 
+    .. py:attribute:: advanced
+
+        in sample files, a bool value indicating the option is advanced
+
     .. versionchanged:: 1.2
        Added *deprecated_opts* parameter.
 
@@ -728,6 +774,9 @@ class Opt(object):
 
     .. versionchanged:: 3.12
        Added *deprecated_since* parameter.
+
+    .. versionchanged:: 3.15
+       Added *advanced* parameter and attribute.
     """
     multi = False
 
@@ -737,7 +786,7 @@ class Opt(object):
                  deprecated_name=None, deprecated_group=None,
                  deprecated_opts=None, sample_default=None,
                  deprecated_for_removal=False, deprecated_reason=None,
-                 deprecated_since=None, mutable=False):
+                 deprecated_since=None, mutable=False, advanced=False):
         if name.startswith('_'):
             raise ValueError('illegal name %s with prefix _' % (name,))
         self.name = name
@@ -775,6 +824,7 @@ class Opt(object):
         self._check_default()
 
         self.mutable = mutable
+        self.advanced = advanced
 
     def _default_is_ref(self):
         """Check if default is a reference to another var."""
@@ -1236,35 +1286,21 @@ class PortOpt(Opt):
     :param name: the option's name
     :param choices: Optional sequence of valid values.
     :param \*\*kwargs: arbitrary keyword arguments passed to :class:`Opt`
+    :param min: minimum value the port can take
+    :param max: maximum value the port can take
 
     .. versionadded:: 2.6
     .. versionchanged:: 3.2
        Added *choices* parameter.
     .. versionchanged:: 3.4
        Allow port number with 0.
+    .. versionchanged:: 3.16
+       Added *min* and *max* parameters.
     """
-    PORT_MIN = 0
-    PORT_MAX = 65535
 
-    def __init__(self, name, choices=None, **kwargs):
-
-        # choices and min/max are mutally exclusive for Integer type. So check
-        # if choice are in the range of min/max and only assign choices to
-        # Integer type.
-        if choices is not None:
-            invalid_choices = []
-            for choice in choices:
-                if not self.PORT_MIN <= choice <= self.PORT_MAX:
-                    invalid_choices.append(six.text_type(choice))
-            if invalid_choices:
-                raise ValueError("'Choices' values %(choices)s should be in "
-                                 "the range of %(min)d and %(max)d" %
-                                 {'choices': ', '.join(invalid_choices),
-                                  'min': self.PORT_MIN, 'max': self.PORT_MAX})
-            type = types.Integer(choices=choices, type_name='port value')
-        else:
-            type = types.Integer(min=self.PORT_MIN, max=self.PORT_MAX,
-                                 type_name='port value')
+    def __init__(self, name, min=None, max=None, choices=None, **kwargs):
+        type = types.Port(min=min, max=max, choices=choices,
+                          type_name='port value')
         super(PortOpt, self).__init__(name, type=type, **kwargs)
 
 
@@ -2096,6 +2132,8 @@ class ConfigOpts(collections.Mapping):
 
         if prog is None:
             prog = os.path.basename(sys.argv[0])
+            if prog.endswith(".py"):
+                prog = prog[:-3]
 
         if default_config_files is None:
             default_config_files = find_config_files(project, prog)
@@ -2182,7 +2220,8 @@ class ConfigOpts(collections.Mapping):
 
         :param args: command line arguments (defaults to sys.argv[1:])
         :param project: the toplevel project name, used to locate config files
-        :param prog: the name of the program (defaults to sys.argv[0] basename)
+        :param prog: the name of the program (defaults to sys.argv[0]
+            basename, without extension .py)
         :param version: the program version (for --version)
         :param usage: a usage string (%prog will be expanded)
         :param default_config_files: config files to use by default
