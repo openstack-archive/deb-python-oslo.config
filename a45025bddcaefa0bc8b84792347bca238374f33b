@@ -1,0 +1,11 @@
+Code-Review+1: Gevorg Davoian <gdavoian@mirantis.com>
+Code-Review+1: Eric Brown <browne@vmware.com>
+Code-Review+2: Joshua Harlow <jxharlow@godaddy.com>
+Code-Review+2: Doug Hellmann <doug@doughellmann.com>
+Workflow+1: Doug Hellmann <doug@doughellmann.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Mon, 12 Sep 2016 21:46:35 +0000
+Reviewed-on: https://review.openstack.org/367702
+Project: openstack/deb-python-oslo.config
+Branch: refs/heads/master
