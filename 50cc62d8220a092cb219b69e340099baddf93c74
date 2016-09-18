@@ -1,0 +1,12 @@
+Code-Review+2: Alexis Lee <lxsli@hpe.com>
+Code-Review+1: lidong <lidongbj@inspur.com>
+Code-Review+1: Gevorg Davoian <gdavoian@mirantis.com>
+Code-Review+2: ChangBo Guo(gcb) <glongwave@gmail.com>
+Workflow+1: ChangBo Guo(gcb) <glongwave@gmail.com>
+Code-Review+1: 尹亮 <yinliang@awcloud.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Sun, 18 Sep 2016 03:57:28 +0000
+Reviewed-on: https://review.openstack.org/370429
+Project: openstack/deb-python-oslo.config
+Branch: refs/heads/master
