@@ -1,0 +1,11 @@
+Code-Review+1: Eric Brown <browne@vmware.com>
+Code-Review+1: Haifeng Yan <yanheven@qq.com>
+Code-Review+2: Mehdi Abaakouk (sileht) <sileht@redhat.com>
+Code-Review+2: Gevorg Davoian <gdavoian@mirantis.com>
+Workflow+1: Gevorg Davoian <gdavoian@mirantis.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Wed, 12 Oct 2016 13:44:34 +0000
+Reviewed-on: https://review.openstack.org/383315
+Project: openstack/deb-python-oslo.config
+Branch: refs/heads/master
