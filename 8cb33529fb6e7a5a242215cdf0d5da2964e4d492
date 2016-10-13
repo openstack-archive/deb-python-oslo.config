@@ -1,0 +1,10 @@
+Code-Review+1: Haifeng Yan <yanheven@qq.com>
+Code-Review+2: Doug Hellmann <doug@doughellmann.com>
+Code-Review+2: Alexis Lee <lxsli@hpe.com>
+Workflow+1: Alexis Lee <lxsli@hpe.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Thu, 13 Oct 2016 12:58:16 +0000
+Reviewed-on: https://review.openstack.org/346702
+Project: openstack/deb-python-oslo.config
+Branch: refs/heads/master
