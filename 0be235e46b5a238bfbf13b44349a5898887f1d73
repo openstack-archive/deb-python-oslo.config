@@ -1,0 +1,11 @@
+Code-Review+1: Adam Harwell <flux.adam@gmail.com>
+Code-Review+2: Gevorg Davoian <gdavoian@mirantis.com>
+Code-Review+1: Alex Schultz <aschultz@redhat.com>
+Code-Review+2: Julien Danjou <julien@danjou.info>
+Workflow+1: Julien Danjou <julien@danjou.info>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Tue, 25 Oct 2016 16:09:21 +0000
+Reviewed-on: https://review.openstack.org/389858
+Project: openstack/deb-python-oslo.config
+Branch: refs/heads/master
