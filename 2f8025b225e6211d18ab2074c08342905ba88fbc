@@ -1,0 +1,9 @@
+Code-Review+2: Doug Hellmann <doug@doughellmann.com>
+Code-Review+2: Davanum Srinivas (dims) <davanum@gmail.com>
+Workflow+1: Davanum Srinivas (dims) <davanum@gmail.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Mon, 28 Nov 2016 14:46:27 +0000
+Reviewed-on: https://review.openstack.org/328229
+Project: openstack/deb-python-oslo.config
+Branch: refs/heads/master
