@@ -1,0 +1,8 @@
+Code-Review+2: Mehdi Abaakouk (sileht) <sileht@redhat.com>
+Workflow+1: Mehdi Abaakouk (sileht) <sileht@redhat.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Fri, 13 Jan 2017 10:03:47 +0000
+Reviewed-on: https://review.openstack.org/419790
+Project: openstack/deb-python-oslo.config
+Branch: refs/heads/master
