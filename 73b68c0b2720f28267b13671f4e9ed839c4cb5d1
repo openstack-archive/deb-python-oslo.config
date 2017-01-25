@@ -1,0 +1,9 @@
+Code-Review+2: ChangBo Guo(gcb) <glongwave@gmail.com>
+Code-Review+2: Alexis Lee <lxsli@hpe.com>
+Workflow+1: Alexis Lee <lxsli@hpe.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Wed, 25 Jan 2017 12:08:45 +0000
+Reviewed-on: https://review.openstack.org/423436
+Project: openstack/deb-python-oslo.config
+Branch: refs/heads/master
