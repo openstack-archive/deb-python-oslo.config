@@ -1,0 +1,10 @@
+Code-Review+2: Julien Danjou <julien@danjou.info>
+Code-Review+2: Davanum Srinivas (dims) <davanum@gmail.com>
+Code-Review+1: Stephen Finucane <sfinucan@redhat.com>
+Workflow+1: ChangBo Guo(gcb) <glongwave@gmail.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Tue, 28 Mar 2017 16:17:43 +0000
+Reviewed-on: https://review.openstack.org/446899
+Project: openstack/deb-python-oslo.config
+Branch: refs/heads/master
