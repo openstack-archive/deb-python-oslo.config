@@ -1,0 +1,9 @@
+Code-Review+2: Doug Hellmann <doug@doughellmann.com>
+Code-Review+2: Ben Nemec <openstack@nemebean.com>
+Workflow+1: ChangBo Guo(gcb) <glongwave@gmail.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Mon, 10 Apr 2017 04:19:02 +0000
+Reviewed-on: https://review.openstack.org/328692
+Project: openstack/deb-python-oslo.config
+Branch: refs/heads/master
