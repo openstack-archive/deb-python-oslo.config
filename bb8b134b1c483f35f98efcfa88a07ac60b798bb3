@@ -1,0 +1,9 @@
+Code-Review+2: Doug Hellmann <doug@doughellmann.com>
+Code-Review+2: Julien Danjou <julien@danjou.info>
+Workflow+1: Julien Danjou <julien@danjou.info>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Thu, 13 Apr 2017 15:23:31 +0000
+Reviewed-on: https://review.openstack.org/455485
+Project: openstack/deb-python-oslo.config
+Branch: refs/heads/master
