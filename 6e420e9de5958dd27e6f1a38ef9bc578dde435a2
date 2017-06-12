@@ -1,0 +1,9 @@
+Code-Review+2: Doug Hellmann <doug@doughellmann.com>
+Code-Review+2: Ben Nemec <openstack@nemebean.com>
+Workflow+1: Ben Nemec <openstack@nemebean.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Mon, 12 Jun 2017 23:04:04 +0000
+Reviewed-on: https://review.openstack.org/473550
+Project: openstack/deb-python-oslo.config
+Branch: refs/heads/master
